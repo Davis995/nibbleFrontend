@@ -1,0 +1,71 @@
+"use client"
+
+import React from "react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { cn } from "@/lib/utils"
+import { LucideIcon } from "lucide-react"
+
+export interface SettingsNavItem {
+    label: string
+    href: string
+    icon: LucideIcon
+}
+
+interface SettingsSidebarProps {
+    items: SettingsNavItem[]
+    variant?: "default" | "glass" | "slate"
+}
+
+export function SettingsSidebar({ items, variant = "default" }: SettingsSidebarProps) {
+    const pathname = usePathname()
+
+    return (
+        <nav className="space-y-1 w-full lg:w-64 flex-shrink-0">
+            {items.map((item) => {
+                const isActive = pathname === item.href || pathname?.startsWith(item.href + "/")
+
+                // Define styles based on variant
+                let containerStyles = ""
+                let iconStyles = ""
+
+                if (variant === "glass") {
+                    containerStyles = isActive
+                        ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30 dark:bg-white/20 dark:text-white dark:shadow-black/5"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/50 dark:text-white/60 dark:hover:text-white dark:hover:bg-white/10"
+                    iconStyles = isActive ? "text-white" : "text-slate-400 group-hover:text-slate-600 dark:text-white/60 dark:group-hover:text-white"
+                } else if (variant === "slate") {
+                    containerStyles = isActive
+                        ? "bg-violet-600 text-white shadow-md shadow-violet-900/20"
+                        : "text-slate-500 hover:text-slate-900 hover:bg-slate-100/50 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800"
+                    iconStyles = isActive ? "text-white" : "text-slate-400 group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300"
+                } else {
+                    // Default (Light)
+                    containerStyles = isActive
+                        ? "bg-violet-50 text-violet-700 font-semibold dark:bg-violet-900/20 dark:text-violet-300"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-white/5"
+                    iconStyles = isActive ? "text-violet-600 dark:text-violet-400" : "text-slate-400 group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300"
+                }
+
+                return (
+                    <Link
+                        key={item.href}
+                        href={item.href}
+                        className={cn(
+                            "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group font-medium text-sm",
+                            containerStyles
+                        )}
+                    >
+                        <item.icon className={cn("w-5 h-5 transition-colors", iconStyles)} />
+                        {item.label}
+
+                        {isActive && variant === 'glass' && (
+                            <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+                        )}
+                        {/* For Slate/Default we don't need the dot, the bg color is enough */}
+                    </Link>
+                )
+            })}
+        </nav>
+    )
+}

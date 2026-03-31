@@ -1,0 +1,160 @@
+"use client"
+
+import React, { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { motion } from "framer-motion"
+import { Clock, FileText, ArrowRight } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { useTheme } from "@/components/providers/ThemeContext"
+import { useAuth } from "@/components/providers/AuthContext"
+
+type HistoryItem = {
+    id: number
+    toolId: string
+    tool: string
+    title: string
+    date: string
+    type: string
+    formData: any
+    output: string
+}
+
+export default function HistoryPage() {
+    const { theme } = useTheme()
+    const { tokens } = useAuth()
+    const router = useRouter()
+    const isLight = theme === 'light'
+    const [historyItems, setHistoryItems] = useState<HistoryItem[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+
+    useEffect(() => {
+        const fetchHistory = async () => {
+            if (!tokens?.access) return
+            try {
+                const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+                const response = await fetch(`${baseUrl}/api/v1/tools/logs/history/`, {
+                    headers: {
+                        "Authorization": `Bearer ${tokens.access}`
+                    }
+                })
+                if (response.ok) {
+                    const data = await response.json()
+                    setHistoryItems(Array.isArray(data) ? data : (data.results || []))
+                }
+            } catch (error) {
+                console.error("Failed to fetch history:", error)
+            } finally {
+                setIsLoading(false)
+            }
+        }
+        fetchHistory()
+    }, [tokens])
+
+    return (
+        <div className="space-y-8">
+            <div className={cn("border-b pb-8", isLight ? "border-slate-200" : "border-slate-800")}>
+                <h1 className={cn("text-3xl font-bold mb-2", isLight ? "text-slate-900" : "text-white")}>Output History</h1>
+                <p className={cn("text-lg", isLight ? "text-slate-600 font-medium" : "text-slate-400")}>
+                    Access and manage your previously generated content.
+                </p>
+            </div>
+
+            <div id="tour-history-table" className={cn("rounded-2xl border overflow-hidden", isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-900 border-slate-800")}>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className={cn("border-b", isLight ? "bg-slate-50 border-slate-100 text-slate-500" : "bg-white/5 border-white/5 text-slate-400")}>
+                            <tr>
+                                <th className="p-4 font-medium text-xs uppercase tracking-wider pl-6">Title</th>
+                                <th className="p-4 font-medium text-xs uppercase tracking-wider">Tool Used</th>
+                                <th className="p-4 font-medium text-xs uppercase tracking-wider">Date</th>
+                                <th className="p-4 font-medium text-xs uppercase tracking-wider">Category</th>
+                                <th className="p-4 font-medium text-xs uppercase tracking-wider text-right pr-6">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                            {isLoading ? (
+                                <tr>
+                                    <td colSpan={5} className="p-8 text-center text-slate-500">
+                                        Loading history...
+                                    </td>
+                                </tr>
+                            ) : historyItems.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className="p-8 text-center text-slate-500">
+                                        No history found. Try generating something new!
+                                    </td>
+                                </tr>
+                            ) : (
+                                historyItems.map((item, i) => (
+                                    <motion.tr
+                                        key={item.id}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: i * 0.05 }}
+                                        onClick={() => router.push(`/teacher/tool/${item.toolId}?historyId=${item.id}`)}
+                                        className={cn(
+                                            "group transition-colors cursor-pointer",
+                                            isLight ? "hover:bg-slate-50" : "hover:bg-white/5"
+                                        )}
+                                    >
+                                        <td className="p-4 pl-6">
+                                            <div className="flex items-center gap-3">
+                                                <div className={cn(
+                                                    "w-10 h-10 rounded-lg flex items-center justify-center",
+                                                    isLight ? "bg-violet-50 text-violet-600" : "bg-violet-500/10 text-violet-400"
+                                                )}>
+                                                    <FileText className="w-5 h-5" />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className={cn("font-bold", isLight ? "text-slate-900" : "text-white")}>{item.title}</span>
+                                                    <span className={cn("text-xs font-medium", isLight ? "text-violet-600" : "text-violet-400")}>{item.tool}</span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className={cn("p-4 text-sm", isLight ? "text-slate-600" : "text-slate-400")}>
+                                            {item.tool}
+                                        </td>
+                                        <td className={cn("p-4 text-sm whitespace-nowrap", isLight ? "text-slate-500" : "text-slate-400")}>
+                                            <div className="flex items-center gap-2">
+                                                <Clock className="w-3.5 h-3.5" />
+                                                {item.date}
+                                            </div>
+                                        </td>
+                                        <td className="p-4">
+                                            <span className={cn(
+                                                "inline-flex px-2.5 py-1 rounded-full text-xs font-medium border",
+                                                isLight
+                                                    ? "bg-slate-100 text-slate-600 border-slate-200"
+                                                    : "bg-white/5 text-slate-300 border-white/10"
+                                            )}>
+                                                {item.type}
+                                            </span>
+                                        </td>
+                                        <td className="p-4 pr-6 text-right">
+                                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        router.push(`/teacher/tool/${item.toolId}?historyId=${item.id}`)
+                                                    }}
+                                                    className={cn("p-2 rounded-lg transition-colors", isLight ? "hover:bg-slate-200 text-slate-500" : "hover:bg-white/10 text-slate-400")}
+                                                >
+                                                    <ArrowRight className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </motion.tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+                <div className={cn("p-4 border-t text-center", isLight ? "bg-slate-50 border-slate-100" : "bg-white/5 border-white/5")}>
+                    <button className={cn("text-sm font-medium hover:underline", isLight ? "text-violet-600" : "text-violet-400")}>
+                        Load more history
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
+}
