@@ -88,9 +88,9 @@ export default function PaymentsManagementPage() {
     enabled: activeTab === 'audits'
   });
 
-  const payments = (paymentsRes as any)?.results || [] as Payment[];
-  const invoices = (invoicesRes as any)?.results || [] as Invoice[];
-  const audits = (auditsRes as any)?.results || [] as Audit[];
+  const payments: Payment[] = (paymentsRes as any)?.results || [];
+  const invoices: Invoice[] = (invoicesRes as any)?.results || [];
+  const audits: Audit[] = (auditsRes as any)?.results || [];
   
   const totalCount = activeTab === 'payments' ? (paymentsRes as any)?.count : 
                      activeTab === 'invoices' ? (invoicesRes as any)?.count : 
@@ -215,7 +215,7 @@ export default function PaymentsManagementPage() {
               </tr>
             </thead>
             <tbody className="text-sm font-medium">
-              {activeTab === 'payments' && payments.map((payment) => (
+              {activeTab === 'payments' && payments.map((payment: Payment) => (
                 <tr key={payment.id} className="border-b border-gray-50 hover:bg-slate-50/80 transition-all group">
                   <td className="p-6 pl-10">
                      <div className="flex items-center gap-4 text-gray-900 group-hover:translate-x-1 transition-transform">
@@ -247,7 +247,7 @@ export default function PaymentsManagementPage() {
                 </tr>
               ))}
 
-              {activeTab === 'invoices' && invoices.map((invoice) => (
+              {activeTab === 'invoices' && invoices.map((invoice: Invoice) => (
                 <tr key={invoice.id} className="border-b border-gray-50 hover:bg-slate-50/80 transition-all group">
                   <td className="p-6 pl-10 uppercase font-black text-gray-900 text-xs">
                      <div className="flex items-center gap-3">
@@ -274,7 +274,7 @@ export default function PaymentsManagementPage() {
                 </tr>
               ))}
 
-              {activeTab === 'audits' && audits.map((audit) => (
+              {activeTab === 'audits' && audits.map((audit: Audit) => (
                 <tr key={audit.id} className="border-b border-gray-50 hover:bg-slate-50/80 transition-all">
                   <td className="p-6 pl-10 text-xs text-gray-500 font-mono">
                      {audit.id.split('-')[0]}...

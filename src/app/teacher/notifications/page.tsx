@@ -15,6 +15,7 @@ type Notification = {
     time: string
     icon: any
     color: string
+    isRead: boolean
 }
 
 export default function NotificationsPage() {
