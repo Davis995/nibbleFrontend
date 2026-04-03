@@ -25,5 +25,12 @@ jobs:
             git pull origin main
             npm install
             npm run build
-            pm2 restart nextjs || pm2 start npm --name "nextjs" -- start
+            # Stop any existing PM2 instance safely
+            pm2 delete nextjs || true
+
+            # Start fresh PM2 instance
+            pm2 start npm --name "nextjs" -- start
+
+            # Save PM2 process list for reboot
+            pm2 save
           EOF
