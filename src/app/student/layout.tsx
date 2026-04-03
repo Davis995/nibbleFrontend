@@ -2,16 +2,17 @@
 
 import React, { useState, useRef, useEffect } from "react"
 import Link from "next/link"
-import { Menu, X, Bell, Clock, Zap, Trophy, Shield, Trash2 } from "lucide-react"
+import { Menu, X, Bell, Clock, Loader2 } from "lucide-react"
 import { StudentSidebar } from "@/components/student/StudentSidebar"
 import { StudentFavoritesProvider } from "@/components/student/StudentFavoritesContext"
 import { StudentProfileProvider } from "@/components/student/StudentProfileContext"
 import { AnimatePresence, motion } from "framer-motion"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Logo } from "@/components/logo"
 import { AuthGuard } from "@/components/auth/AuthGuard"
 import { useTheme } from "@/components/providers/ThemeContext"
+import { useAuth } from "@/components/providers/AuthContext"
+import { useNotifications } from "@/hooks/useNotifications"
 
 function StudentLayoutContent({ children }: { children: React.ReactNode }) {
     const [isMobileOpen, setIsMobileOpen] = useState(false)
@@ -19,27 +20,8 @@ function StudentLayoutContent({ children }: { children: React.ReactNode }) {
     const notificationRef = useRef<HTMLDivElement>(null)
     const pathname = usePathname()
     const { theme } = useTheme()
-
-    const notifications = [
-        {
-            id: "1",
-            title: "New Quiz Available",
-            description: "Algebra Foundations is ready.",
-            time: "1h ago",
-            icon: Zap,
-            color: "text-blue-500 bg-blue-500/10",
-            isRead: false
-        },
-        {
-            id: "2",
-            title: "Streak Master!",
-            description: "5 day streak achieved.",
-            time: "4h ago",
-            icon: Trophy,
-            color: "text-amber-500 bg-amber-500/10",
-            isRead: false
-        }
-    ]
+    const { tokens } = useAuth()
+    const { notifications, isLoading, unreadCount, markAllRead } = useNotifications(tokens?.access)
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -95,7 +77,9 @@ function StudentLayoutContent({ children }: { children: React.ReactNode }) {
                             )}
                         >
                             <Bell className="w-5 h-5" />
-                            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-950 animate-pulse"></span>
+                            {unreadCount > 0 && (
+                                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-950 animate-pulse" />
+                            )}
                         </button>
 
                         <AnimatePresence>
@@ -110,13 +94,31 @@ function StudentLayoutContent({ children }: { children: React.ReactNode }) {
                                     )}
                                 >
                                     <div className={cn("p-4 border-b flex items-center justify-between", theme === 'dark' ? "bg-white/5" : "bg-slate-50/50")}>
-                                        <h3 className="font-bold text-sm">Recent Updates</h3>
-                                        <Link href="/student/notifications" onClick={() => setIsNotificationsOpen(false)} className="text-xs font-bold text-blue-600 hover:underline dark:text-blue-400">
-                                            View all
-                                        </Link>
+                                        <div>
+                                            <h3 className="font-bold text-sm">Notifications</h3>
+                                            {unreadCount > 0 && <p className="text-xs text-blue-600 dark:text-blue-400">{unreadCount} unread</p>}
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            {unreadCount > 0 && (
+                                                <button onClick={markAllRead} className="text-xs font-bold text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">Mark all read</button>
+                                            )}
+                                            <Link href="/student/notifications" onClick={() => setIsNotificationsOpen(false)} className="text-xs font-bold text-blue-600 hover:underline dark:text-blue-400">
+                                                View all
+                                            </Link>
+                                        </div>
                                     </div>
                                     <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
-                                        {notifications.map((n) => (
+                                        {isLoading ? (
+                                            <div className="flex items-center justify-center py-8 text-slate-400">
+                                                <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                                                <span className="text-sm">Loading...</span>
+                                            </div>
+                                        ) : notifications.length === 0 ? (
+                                            <div className="py-10 text-center">
+                                                <Bell className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                                                <p className="text-sm text-slate-500 dark:text-slate-400">All caught up!</p>
+                                            </div>
+                                        ) : notifications.map((n) => (
                                             <div 
                                                 key={n.id} 
                                                 className={cn(
@@ -151,7 +153,7 @@ function StudentLayoutContent({ children }: { children: React.ReactNode }) {
                                             onClick={() => setIsNotificationsOpen(false)}
                                             className="text-xs font-bold text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-white"
                                         >
-                                            View full notifications
+                                            View all notifications
                                         </Link>
                                     </div>
                                 </motion.div>

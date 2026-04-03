@@ -35,6 +35,7 @@ interface Plan {
     cta: string;
     is_popular: boolean;
     is_active: boolean;
+    display_order: number;
     features: PlanFeature[];
 }
 
@@ -81,7 +82,8 @@ export default function StudentBillingPage() {
                 
                 const data = await res.json()
                 if (data.plans) {
-                    setPlans(data.plans)
+                    const sortedPlans = (data.plans as Plan[]).sort((a: Plan, b: Plan) => (a.display_order || 0) - (b.display_order || 0))
+                    setPlans(sortedPlans)
                 } else {
                     throw new Error("Invalid data format")
                 }

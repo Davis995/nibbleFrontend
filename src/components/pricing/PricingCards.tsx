@@ -2,9 +2,11 @@
 
 import React, { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Check, X, Sparkles, Building2, Star } from "lucide-react"
+import { Check, X, Sparkles, Building2, Star, Loader2, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { useAuth } from "@/components/providers/AuthContext"
+import { useEffect } from "react"
 import Link from "next/link"
 
 interface PlanFeature {
@@ -25,87 +27,91 @@ interface PricingPlan {
     ctaLink: string
     popular?: boolean
     badge?: string
+    currency: string
     theme: "light" | "dark" | "cream"
 }
 
-const plans: PricingPlan[] = [
-    {
-        id: "free",
-        name: "Free",
-        description: "Get started with essential AI tools for teaching. Perfect for exploring what NibbleLearn can do.",
-        monthlyPrice: 0,
-        annualPrice: 0,
-        annualBilled: 0,
-        badge: "Active",
-        theme: "cream",
-        cta: "Get Started Free",
-        ctaLink: "/signup",
-        features: [
-            { text: "Access to 80+ teacher tools", included: true },
-            { text: "Access to 40+ student tools", included: true },
-            { text: "Lesson planning tools", included: true },
-            { text: "Quiz & worksheet generators", included: true },
-            { text: "Basic Jarvis AI assistant", included: true },
-            { text: "Student Rooms for AI literacy", included: true },
-            { text: "Unlimited AI generations", included: false },
-            { text: "Full output history", included: false },
-            { text: "1-click Google/Microsoft exports", included: false },
-            { text: "NibbleLearn Labs (early access)", included: false },
-        ]
-    },
-    {
-        id: "plus",
-        name: "Plus",
-        description: "Unlock unlimited generations, full history, and early access to new tools with NibbleLearn Labs.",
-        monthlyPrice: 11.99,
-        annualPrice: 8.33,
-        annualBilled: 99.96,
-        badge: "Save 27%",
-        popular: true,
-        theme: "dark",
-        cta: "Start 7-day Free Trial",
-        ctaLink: "/signup?plan=plus",
-        features: [
-            { text: "All Free plan features", included: true },
-            { text: "Unlimited AI generations", included: true, highlight: true },
-            { text: "Full output history", included: true, highlight: true },
-            { text: "1-click exports to Google Docs, Slides", included: true },
-            { text: "1-click exports to Microsoft Word, PPT", included: true },
-            { text: "NibbleLearn Labs (early access)", included: true, highlight: true },
-            { text: "Unlimited AI Slides generation", included: true },
-            { text: "Continue threads with Jarvis", included: true },
-            { text: "Priority email support", included: true },
-            { text: "Advanced moderation (Enterprise)", included: false },
-        ]
-    },
-    {
-        id: "enterprise",
-        name: "Enterprise",
-        description: "Full district control with custom data privacy, SSO, advanced analytics, and dedicated support.",
-        monthlyPrice: null,
-        annualPrice: null,
-        annualBilled: null,
-        badge: "Popular",
-        theme: "cream",
-        cta: "Book a Demo",
-        ctaLink: "/demo",
-        features: [
-            { text: "All Plus plan features", included: true },
-            { text: "Custom data privacy agreements", included: true, highlight: true },
-            { text: "Single Sign-On (SSO)", included: true, highlight: true },
-            { text: "Advanced moderation & monitoring", included: true },
-            { text: "PII detection & smart alerts", included: true },
-            { text: "Custom tool creation for district", included: true },
-            { text: "District-level analytics dashboard", included: true },
-            { text: "LMS Integration (Canvas, Schoology)", included: true },
-            { text: "Dedicated success manager", included: true, highlight: true },
-            { text: "Onboarding & implementation support", included: true },
-        ]
-    }
-]
+// Static data removed to move to dynamic fetch
 
 export function PricingCards() {
     const [billingPeriod, setBillingPeriod] = useState<"annual" | "monthly">("annual")
+    const [plans, setPlans] = useState<PricingPlan[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
+
+    useEffect(() => {
+        const fetchPlans = async () => {
+            setIsLoading(true)
+            setError(null)
+            try {
+                const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
+                const res = await fetch(`${baseUrl}/api/v1/auth/plans/onboarding/`)
+                if (!res.ok) throw new Error("Failed to fetch plans")
+                const data = await res.json()
+                
+                        const mapBackendToPricingPlan = (p: any): PricingPlan => {
+                            const isEnterprise = p.useType === 'enterprise'
+                            return {
+                                id: p.id,
+                                name: p.name,
+                                description: p.description,
+                                monthlyPrice: p.monthlyPrice,
+                                annualPrice: p.annualPrice,
+                                annualBilled: p.annualBilled,
+                                currency: p.currency || 'UGX',
+                                cta: p.cta,
+                                ctaLink: isEnterprise ? "/demo" : `/signup?plan=${p.id}`,
+                                popular: p.popular,
+                                badge: p.badge,
+                                theme: p.theme || (p.popular ? "dark" : "light"),
+                                features: p.features.map((f: any) => ({
+                                    text: f.text,
+                                    included: f.included,
+                                    highlight: f.highlight
+                                }))
+                            }
+                        }
+
+                // Show individual and a slice of enterprise
+                const allPlans = [
+                    ...data.individual.map(mapBackendToPricingPlan),
+                    ...data.enterprise.map(mapBackendToPricingPlan)
+                ]
+                
+                setPlans(allPlans)
+            } catch (err) {
+                console.error("Pricing fetch error:", err)
+                setError("Unable to load latest pricing. Please try again.")
+            } finally {
+                setIsLoading(false)
+            }
+        }
+        fetchPlans()
+    }, [])
+
+    if (isLoading) {
+        return (
+            <div className="py-24 flex flex-col items-center justify-center min-h-[400px] space-y-4">
+                <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+                <p className="text-slate-500 animate-pulse font-medium">Fetching best prices...</p>
+            </div>
+        )
+    }
+
+    if (error) {
+        return (
+            <div className="py-24 flex flex-col items-center justify-center min-h-[400px] space-y-4 text-center px-4">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                    <AlertCircle className="w-8 h-8 text-red-600" />
+                </div>
+                <h2 className="text-xl font-bold text-slate-900">Oops! Pricing unavailable</h2>
+                <p className="text-slate-600 max-w-sm">{error}</p>
+                <Button onClick={() => window.location.reload()} variant="outline" className="mt-4">
+                    Retry Loading
+                </Button>
+            </div>
+        )
+    }
 
     return (
         <section className="py-24 bg-slate-50">
@@ -205,9 +211,9 @@ export function PricingCards() {
                             )}
 
                             {/* Plan Name */}
-                            <div className="flex items-center gap-3 mb-4">
+                            <div className="flex items-center gap-3 mb-4 min-w-0">
                                 <div className={cn(
-                                    "w-10 h-10 rounded-xl flex items-center justify-center",
+                                    "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
                                     plan.theme === "dark" ? "bg-white/10" : "bg-violet-100"
                                 )}>
                                     {plan.id === "enterprise"
@@ -215,49 +221,49 @@ export function PricingCards() {
                                         : <Sparkles className={cn("w-5 h-5", plan.theme === "dark" ? "text-amber-400" : "text-violet-600")} />
                                     }
                                 </div>
-                                <h3 className="text-2xl font-bold">{plan.name}</h3>
+                                <h3 className="text-2xl font-bold truncate break-words">{plan.name}</h3>
                             </div>
 
                             {/* Pricing */}
-                            <div className="mb-4">
+                            <div className="mb-4 min-w-0 overflow-hidden">
                                 {plan.monthlyPrice !== null ? (
                                     <>
-                                        <div className="flex items-baseline gap-2">
-                                            {billingPeriod === "annual" && plan.monthlyPrice > 0 && (
+                                        <div className="flex flex-wrap items-baseline gap-x-2">
+                                            {billingPeriod === "annual" && (plan.monthlyPrice ?? 0) > 0 && (
                                                 <span className={cn(
-                                                    "text-2xl line-through",
+                                                    "text-xl line-through opacity-60",
                                                     plan.theme === "dark" ? "text-slate-500" : "text-slate-400"
                                                 )}>
-                                                    ${plan.monthlyPrice}
+                                                    {plan.currency} {new Intl.NumberFormat().format(plan.monthlyPrice ?? 0)}
                                                 </span>
                                             )}
-                                            <span className="text-5xl font-extrabold">
-                                                ${billingPeriod === "annual" ? plan.annualPrice : plan.monthlyPrice}
+                                            <span className="text-4xl md:text-5xl font-extrabold tracking-tighter">
+                                                {plan.currency} {new Intl.NumberFormat().format((billingPeriod === "annual" ? plan.annualPrice : plan.monthlyPrice) ?? 0)}
                                             </span>
                                             <span className={cn(
-                                                "text-base",
+                                                "text-sm font-bold opacity-80",
                                                 plan.theme === "dark" ? "text-slate-400" : "text-slate-500"
                                             )}>
-                                                /month (USD)
+                                                /mo
                                             </span>
                                         </div>
-                                        {billingPeriod === "annual" && plan.annualBilled && plan.annualBilled > 0 && (
+                                        {billingPeriod === "annual" && (plan.annualBilled ?? 0) > 0 && (
                                             <p className={cn(
-                                                "text-sm mt-1",
-                                                plan.theme === "dark" ? "text-slate-400" : "text-slate-500"
+                                                "text-sm mt-1 font-bold",
+                                                plan.theme === "dark" ? "text-amber-400" : "text-indigo-600"
                                             )}>
-                                                ${plan.annualBilled} billed yearly
+                                                {plan.currency} {new Intl.NumberFormat().format(plan.annualBilled ?? 0)} billed yearly
                                             </p>
                                         )}
                                     </>
                                 ) : (
-                                    <div>
-                                        <span className="text-4xl font-extrabold">Custom</span>
+                                    <div className="min-w-0">
+                                        <span className="text-4xl font-extrabold tracking-tight">Custom Plan</span>
                                         <p className={cn(
-                                            "text-sm mt-1",
+                                            "text-sm mt-1 font-bold",
                                             plan.theme === "dark" ? "text-slate-400" : "text-slate-500"
                                         )}>
-                                            $3-4 per student annually
+                                            Price scales with school size
                                         </p>
                                     </div>
                                 )}
@@ -265,7 +271,7 @@ export function PricingCards() {
 
                             {/* Description */}
                             <p className={cn(
-                                "text-sm leading-relaxed mb-6",
+                                "text-sm leading-relaxed mb-6 break-words whitespace-normal",
                                 plan.theme === "dark" ? "text-slate-300" : "text-slate-600"
                             )}>
                                 {plan.description}
@@ -287,7 +293,7 @@ export function PricingCards() {
                                             }
                                         </div>
                                         <span className={cn(
-                                            "text-sm",
+                                            "text-sm break-words whitespace-normal leading-snug",
                                             !feature.included && (plan.theme === "dark" ? "text-slate-500" : "text-slate-400"),
                                             feature.highlight && "font-semibold"
                                         )}>

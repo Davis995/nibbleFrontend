@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react"
 import Link from "next/link"
-import { Menu, X, Search, Bell, Clock, Check, Trash2, Settings, Info, Shield, Zap, CheckCircle } from "lucide-react"
+import { Menu, X, Bell, Clock, Loader2 } from "lucide-react"
 import { TeacherSidebar } from "@/components/dashboard/TeacherSidebar"
 import { TeacherTour } from "@/components/dashboard/TeacherTour"
 import { AnimatePresence, motion } from "framer-motion"
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils"
 import { useTheme } from "@/components/providers/ThemeContext"
 import { AuthGuard } from "@/components/auth/AuthGuard"
 import { useAuth } from "@/components/providers/AuthContext"
+import { useNotifications } from "@/hooks/useNotifications"
 
 export default function TeacherAppLayout({
     children,
@@ -33,39 +34,10 @@ function TeacherLayoutContent({
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
     const notificationRef = useRef<HTMLDivElement>(null)
     const { theme } = useTheme()
-    const { plan } = useAuth()
+    const { plan, tokens } = useAuth()
+    const { notifications, isLoading, unreadCount, markAllRead } = useNotifications(tokens?.access)
 
     const showUpgrade = !plan || plan.plan_name?.toLowerCase() === 'free'
-
-    const notifications = [
-        {
-            id: "1",
-            title: "New AI Model Available",
-            description: "Experience enhanced lesson planning.",
-            time: "2h ago",
-            icon: Zap,
-            color: "text-amber-500 bg-amber-500/10",
-            isRead: false
-        },
-        {
-            id: "2",
-            title: "Weekly Achievement Unlocked",
-            description: "Great job! You've generated 20+ resources.",
-            time: "5h ago",
-            icon: CheckCircle,
-            color: "text-emerald-500 bg-emerald-500/10",
-            isRead: false
-        },
-        {
-            id: "3",
-            title: "System Maintenance",
-            description: "Scheduled maintenance on Saturday.",
-            time: "1d ago",
-            icon: Shield,
-            color: "text-blue-500 bg-blue-500/10",
-            isRead: true
-        }
-    ]
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -125,7 +97,9 @@ function TeacherLayoutContent({
                             )}
                         >
                             <Bell className="w-5 h-5" />
-                            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full border-2 bg-red-500 border-white dark:border-slate-900 animate-pulse"></span>
+                            {unreadCount > 0 && (
+                                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full border-2 bg-red-500 border-white dark:border-slate-900 animate-pulse" />
+                            )}
                         </button>
 
                         <AnimatePresence>
@@ -138,13 +112,31 @@ function TeacherLayoutContent({
                                     className="absolute right-0 mt-3 w-80 md:w-96 rounded-2xl shadow-2xl border overflow-hidden bg-white border-slate-200 dark:bg-slate-900 dark:border-white/10 dark:shadow-black/50"
                                 >
                                     <div className="p-4 border-b flex items-center justify-between bg-slate-50/50 dark:bg-white/5">
-                                        <h3 className="font-bold text-slate-900 dark:text-white">Notifications</h3>
-                                        <Link href="/teacher/notifications" onClick={() => setIsNotificationsOpen(false)} className="text-xs font-bold text-violet-600 hover:underline dark:text-violet-400">
-                                            View all
-                                        </Link>
+                                        <div>
+                                            <h3 className="font-bold text-slate-900 dark:text-white">Notifications</h3>
+                                            {unreadCount > 0 && <p className="text-xs text-violet-600 dark:text-violet-400">{unreadCount} unread</p>}
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            {unreadCount > 0 && (
+                                                <button onClick={markAllRead} className="text-xs font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">Mark all read</button>
+                                            )}
+                                            <Link href="/teacher/notifications" onClick={() => setIsNotificationsOpen(false)} className="text-xs font-bold text-violet-600 hover:underline dark:text-violet-400">
+                                                View all
+                                            </Link>
+                                        </div>
                                     </div>
                                     <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
-                                        {notifications.map((n) => (
+                                        {isLoading ? (
+                                            <div className="flex items-center justify-center py-8 text-slate-400">
+                                                <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                                                <span className="text-sm">Loading...</span>
+                                            </div>
+                                        ) : notifications.length === 0 ? (
+                                            <div className="py-10 text-center">
+                                                <Bell className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                                                <p className="text-sm text-slate-500 dark:text-slate-400">All caught up!</p>
+                                            </div>
+                                        ) : notifications.map((n) => (
                                             <div 
                                                 key={n.id} 
                                                 className={cn(

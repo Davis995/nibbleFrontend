@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { motion, AnimatePresence, Variants } from "framer-motion"
 import {
     Phone,
@@ -31,60 +31,10 @@ interface PlanOption {
     icon: React.ReactNode
     gradient: string
     glowColor: string
+    currency: string
+    badge?: string
+    displayOrder: number
 }
-
-const plans: PlanOption[] = [
-    {
-        id: "free",
-        name: "Free",
-        description: "Essential AI tools to get started with teaching",
-        monthlyPrice: 0,
-        annualPrice: 0,
-        icon: <Sparkles className="w-6 h-6" />,
-        gradient: "from-slate-500 to-slate-600",
-        glowColor: "shadow-slate-500/20",
-        features: [
-            "80+ teacher tools",
-            "40+ student tools",
-            "Basic Jarvis AI assistant",
-            "Student Rooms",
-        ],
-    },
-    {
-        id: "plus",
-        name: "Plus",
-        description: "Unlimited generations & full feature access",
-        monthlyPrice: 11.99,
-        annualPrice: 8.33,
-        popular: true,
-        icon: <Crown className="w-6 h-6" />,
-        gradient: "from-violet-600 to-indigo-600",
-        glowColor: "shadow-violet-500/30",
-        features: [
-            "Everything in Free",
-            "Unlimited AI generations",
-            "Full output history",
-            "1-click exports",
-            "NibbleLearn Labs",
-        ],
-    },
-    {
-        id: "enterprise",
-        name: "Enterprise",
-        description: "Full district control with dedicated support",
-        monthlyPrice: null,
-        annualPrice: null,
-        icon: <Building2 className="w-6 h-6" />,
-        gradient: "from-amber-500 to-orange-500",
-        glowColor: "shadow-amber-500/20",
-        features: [
-            "Everything in Plus",
-            "Custom data privacy",
-            "SSO & LMS integration",
-            "Dedicated success manager",
-        ],
-    },
-]
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -97,6 +47,81 @@ export function OnboardingScreen() {
     const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
     const [billingPeriod, setBillingPeriod] = useState<"annual" | "monthly">("annual")
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [isLoadingPlans, setIsLoadingPlans] = useState(true)
+    const [plans, setPlans] = useState<PlanOption[]>([])
+    const [allPlans, setAllPlans] = useState<{ individual: PlanOption[], enterprise: PlanOption[] }>({ individual: [], enterprise: [] })
+
+    // Helper to get iconography and styling based on plan theme or ID
+    const getPlanStyle = (theme: string, id: string) => {
+        if (id.includes('free')) {
+            return {
+                icon: <Sparkles className="w-6 h-6" />,
+                gradient: "from-slate-500 to-slate-600",
+                glowColor: "shadow-slate-500/20",
+            }
+        }
+        if (id.includes('pro') || id.includes('plus')) {
+            return {
+                icon: <Crown className="w-6 h-6" />,
+                gradient: "from-violet-600 to-indigo-600",
+                glowColor: "shadow-violet-500/30",
+            }
+        }
+        return {
+            icon: <Building2 className="w-6 h-6" />,
+            gradient: "from-amber-500 to-orange-500",
+            glowColor: "shadow-amber-500/20",
+        }
+    }
+
+    useEffect(() => {
+        const fetchPlans = async () => {
+            try {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/v1/auth/plans/onboarding/`)
+                if (!res.ok) throw new Error("Failed to fetch plans")
+                const data = await res.json()
+                
+                const mapPlan = (p: any): PlanOption => ({
+                    id: p.id,
+                    name: p.name,
+                    description: p.description,
+                    monthlyPrice: p.monthlyPrice,
+                    annualPrice: p.annualPrice,
+                    popular: p.popular,
+                    currency: p.currency,
+                    badge: p.badge,
+                    features: p.features.filter((f: any) => f.included).map((f: any) => f.text),
+                    displayOrder: p.displayOrder || 0,
+                    ...getPlanStyle(p.theme, p.id)
+                })
+
+                const individual = data.individual
+                    .map(mapPlan)
+                    .sort((a: PlanOption, b: PlanOption) => a.displayOrder - b.displayOrder)
+                const enterprise = data.enterprise
+                    .map(mapPlan)
+                    .sort((a: PlanOption, b: PlanOption) => a.displayOrder - b.displayOrder)
+
+                setAllPlans({ individual, enterprise })
+            } catch (error) {
+                console.error("Error fetching plans:", error)
+                toast.error("Could not load plans. Please try refreshing.")
+            } finally {
+                setIsLoadingPlans(false)
+            }
+        }
+        fetchPlans()
+    }, [])
+
+    // Update displayed plans when role changes
+    useEffect(() => {
+        if (selectedRole === 'teacher' || selectedRole === 'student') {
+            setPlans(allPlans.individual)
+        } else {
+            // Default or if you want to show both, you could merge or wait for role
+            setPlans(allPlans.individual)
+        }
+    }, [selectedRole, allPlans])
 
     const handlePhoneNext = () => {
         if (!phone.trim()) {
@@ -135,8 +160,16 @@ export function OnboardingScreen() {
                 }),
             })
 
+            const data = await res.json()
+
             if (!res.ok) {
-                throw new Error("Failed to complete onboarding")
+                throw new Error(data.error || "Failed to complete onboarding")
+            }
+
+            if (data.redirect_url) {
+                toast.success("Redirecting to secure payment... 💳")
+                window.location.href = data.redirect_url
+                return
             }
 
             updateOnboarding(true)
@@ -295,8 +328,8 @@ export function OnboardingScreen() {
                                     onClick={() => setSelectedRole("teacher")}
                                     className={cn(
                                         "flex-1 py-3 px-4 rounded-xl border-2 transition-all duration-300 font-bold",
-                                        selectedRole === "teacher" 
-                                            ? "border-violet-500 bg-violet-500/20 text-white shadow-lg shadow-violet-500/20" 
+                                        selectedRole === "teacher"
+                                            ? "border-violet-500 bg-violet-500/20 text-white shadow-lg shadow-violet-500/20"
                                             : "border-white/10 bg-black/20 text-white/50 hover:border-white/20 hover:text-white"
                                     )}
                                 >
@@ -406,113 +439,125 @@ export function OnboardingScreen() {
                             initial="hidden"
                             animate="visible"
                         >
-                            {plans.map((plan, i) => (
-                                <motion.button
-                                    key={plan.id}
-                                    variants={{
-                                        hidden: { opacity: 0, y: 20 },
-                                        visible: {
-                                            opacity: 1,
-                                            y: 0,
-                                            transition: { delay: i * 0.1 },
-                                        },
-                                    }}
-                                    onClick={() => setSelectedPlan(plan.id)}
-                                    className={cn(
-                                        "w-full text-left p-4 rounded-2xl border-2 transition-all duration-300 relative overflow-hidden group",
-                                        selectedPlan === plan.id
-                                            ? "border-violet-500 bg-violet-500/10 shadow-lg shadow-violet-500/10"
-                                            : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8"
-                                    )}
-                                >
-                                    {/* Popular Badge */}
-                                    {plan.popular && (
-                                        <div className="absolute -top-px -right-px px-3 py-1 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-bl-xl rounded-tr-2xl text-[10px] font-bold uppercase tracking-wider text-white">
-                                            Popular
-                                        </div>
-                                    )}
+                            {isLoadingPlans ? (
+                                <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                                    <Loader2 className="w-8 h-8 text-violet-500 animate-spin" />
+                                    <p className="text-white/40 text-sm">Fetching elite plans for you...</p>
+                                </div>
+                            ) : plans.length === 0 ? (
+                                <div className="text-center py-8">
+                                    <p className="text-white/40 text-sm">No plans available for your selection.</p>
+                                </div>
+                            ) : (
+                                plans.map((plan, i) => (
+                                    <motion.button
+                                        key={plan.id}
+                                        variants={{
+                                            hidden: { opacity: 0, y: 20 },
+                                            visible: {
+                                                opacity: 1,
+                                                y: 0,
+                                                transition: { delay: i * 0.1 },
+                                            },
+                                        }}
+                                        onClick={() => setSelectedPlan(plan.id)}
+                                        className={cn(
+                                            "w-full text-left p-4 rounded-2xl border-2 transition-all duration-300 relative overflow-hidden group",
+                                            selectedPlan === plan.id
+                                                ? "border-violet-500 bg-violet-500/10 shadow-lg shadow-violet-500/10"
+                                                : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8"
+                                        )}
+                                    >
+                                        {/* Popular Badge */}
+                                        {plan.badge || plan.popular && (
+                                            <div className="absolute -top-px -right-px px-3 py-1 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-bl-xl rounded-tr-2xl text-[10px] font-bold uppercase tracking-wider text-white">
+                                                {plan.badge || "Popular"}
+                                            </div>
+                                        )}
 
-                                    <div className="flex items-start gap-3">
-                                        {/* Icon */}
-                                        <div
-                                            className={cn(
-                                                "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br",
-                                                plan.gradient,
-                                                selectedPlan === plan.id ? "shadow-lg" : ""
-                                            )}
-                                        >
-                                            <span className="text-white">{plan.icon}</span>
-                                        </div>
+                                        <div className="flex items-start gap-3">
+                                            {/* Icon */}
+                                            <div
+                                                className={cn(
+                                                    "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br",
+                                                    plan.gradient,
+                                                    selectedPlan === plan.id ? "shadow-lg" : ""
+                                                )}
+                                            >
+                                                <span className="text-white">{plan.icon}</span>
+                                            </div>
 
-                                        {/* Content */}
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center justify-between">
-                                                <h3 className="text-white font-bold text-base">
-                                                    {plan.name}
-                                                </h3>
-                                                <div className="text-right">
-                                                    {plan.monthlyPrice !== null ? (
-                                                        <span className="text-white font-bold text-lg">
-                                                            ${billingPeriod === "annual" ? plan.annualPrice : plan.monthlyPrice}
-                                                            <span className="text-white/40 text-xs font-normal">/mo</span>
+                                            {/* Content */}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between">
+                                                    <h3 className="text-white font-bold text-base truncate pr-2">
+                                                        {plan.name}
+                                                    </h3>
+                                                    <div className="text-right whitespace-nowrap">
+                                                        {plan.monthlyPrice !== null ? (
+                                                            <span className="text-white font-bold text-lg">
+                                                                {plan.currency === 'UGX' ? 'UGX ' : '$'}
+                                                                {(billingPeriod === "annual" ? plan.annualPrice : plan.monthlyPrice)?.toLocaleString()}
+                                                                <span className="text-white/40 text-[10px] font-normal">/mo</span>
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-white/70 font-semibold text-sm">
+                                                                Custom
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <p className="text-white/40 text-[11px] mt-0.5 leading-tight">
+                                                    {plan.description}
+                                                </p>
+
+                                                {/* Features */}
+                                                <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+                                                    {plan.features.slice(0, 3).map((f, fi) => (
+                                                        <span
+                                                            key={fi}
+                                                            className="text-white/50 text-[10px] flex items-center gap-1"
+                                                        >
+                                                            <Check className="w-2.5 h-2.5 text-emerald-400" />
+                                                            {f}
                                                         </span>
-                                                    ) : (
-                                                        <span className="text-white/70 font-semibold text-sm">
-                                                            Custom
-                                                        </span>
-                                                    )}
+                                                    ))}
                                                 </div>
                                             </div>
-                                            <p className="text-white/40 text-xs mt-0.5">
-                                                {plan.description}
-                                            </p>
 
-                                            {/* Features */}
-                                            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
-                                                {plan.features.map((f, fi) => (
-                                                    <span
-                                                        key={fi}
-                                                        className="text-white/50 text-[11px] flex items-center gap-1"
+                                            {/* Selection Indicator */}
+                                            <div
+                                                className={cn(
+                                                    "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-1 transition-all",
+                                                    selectedPlan === plan.id
+                                                        ? "border-violet-500 bg-violet-500"
+                                                        : "border-white/20"
+                                                )}
+                                            >
+                                                {selectedPlan === plan.id && (
+                                                    <motion.div
+                                                        initial={{ scale: 0 }}
+                                                        animate={{ scale: 1 }}
+                                                        transition={{ type: "spring", stiffness: 400, damping: 15 }}
                                                     >
-                                                        <Check className="w-3 h-3 text-emerald-400" />
-                                                        {f}
-                                                    </span>
-                                                ))}
+                                                        <Check className="w-3 h-3 text-white" />
+                                                    </motion.div>
+                                                )}
                                             </div>
                                         </div>
 
-                                        {/* Selection Indicator */}
-                                        <div
-                                            className={cn(
-                                                "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-1 transition-all",
-                                                selectedPlan === plan.id
-                                                    ? "border-violet-500 bg-violet-500"
-                                                    : "border-white/20"
-                                            )}
-                                        >
-                                            {selectedPlan === plan.id && (
-                                                <motion.div
-                                                    initial={{ scale: 0 }}
-                                                    animate={{ scale: 1 }}
-                                                    transition={{ type: "spring", stiffness: 400, damping: 15 }}
-                                                >
-                                                    <Check className="w-3 h-3 text-white" />
-                                                </motion.div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Glow effect on selection */}
-                                    {selectedPlan === plan.id && (
-                                        <motion.div
-                                            className="absolute inset-0 bg-gradient-to-r from-violet-500/5 to-indigo-500/5 rounded-2xl pointer-events-none"
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            transition={{ duration: 0.3 }}
-                                        />
-                                    )}
-                                </motion.button>
-                            ))}
+                                        {/* Glow effect on selection */}
+                                        {selectedPlan === plan.id && (
+                                            <motion.div
+                                                className="absolute inset-0 bg-gradient-to-r from-violet-500/5 to-indigo-500/5 rounded-2xl pointer-events-none"
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                transition={{ duration: 0.3 }}
+                                            />
+                                        )}
+                                    </motion.button>
+                                ))
+                            )}
                         </motion.div>
 
                         {/* Action Buttons */}
@@ -526,7 +571,7 @@ export function OnboardingScreen() {
                             </Button>
                             <Button
                                 onClick={handleComplete}
-                                disabled={!selectedPlan || isSubmitting}
+                                disabled={!selectedPlan || isSubmitting || isLoadingPlans}
                                 className={cn(
                                     "flex-1 h-12 rounded-xl text-base font-bold text-white shadow-lg border-0 transition-all",
                                     selectedPlan
