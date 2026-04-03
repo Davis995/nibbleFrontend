@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, PlayCircle } from "lucide-react"
+import Image from "next/image"
 
 const ROTATING_TEXTS = ["Schools", "Teachers", "Students"]
 
@@ -81,37 +82,25 @@ export function Hero() {
                     transition={{ duration: 0.8, delay: 0.2 }}
                     className="mt-16 md:mt-24 relative mx-auto max-w-5xl"
                 >
-                    <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-slate-200 bg-slate-900 aspect-video flex items-center justify-center group">
-                        {/* This would be the image */}
-                        <div className="absolute inset-0 bg-gradient-to-tr from-violet-900/20 to-blue-900/20 z-10 pointer-events-none" />
-                        <span className="text-white/50 text-xl font-medium z-0">
-                            Play Platform Walkthrough
-                        </span>
-
-                        {/* Mock UI to make it look real if image missing */}
-                        <div className="absolute inset-0 bg-slate-50 opacity-10"></div>
-
-                        {/* Floating elements example */}
-                        <div className="absolute -left-12 bottom-12 bg-white p-4 rounded-xl shadow-xl flex items-center gap-3 animate-bounce-slow hidden md:flex">
-                            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600">
-                                <span className="font-bold text-lg">A+</span>
-                            </div>
-                            <div>
-                                <p className="text-xs font-bold text-slate-900">Grade Level</p>
-                                <p className="text-xs text-slate-500">Improved by 28%</p>
-                            </div>
+                    <div className="rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-900 bg-slate-900">
+                        {/* Browser Title Bar */}
+                        <div className="bg-slate-800 h-12 flex items-center px-4 gap-2">
+                            <div className="w-3 h-3 rounded-full bg-red-400" />
+                            <div className="w-3 h-3 rounded-full bg-yellow-400" />
+                            <div className="w-3 h-3 rounded-full bg-green-400" />
+                            <div className="ml-4 bg-slate-700 rounded-full h-6 w-1/2" />
                         </div>
 
-                        <div className="absolute -right-8 top-12 bg-white p-4 rounded-xl shadow-xl flex items-center gap-3 animate-bounce-slow-delay hidden md:flex">
-                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
-                                <span className="font-bold">⏰</span>
-                            </div>
-                            <div>
-                                <p className="text-xs font-bold text-slate-900">Time Saved</p>
-                                <p className="text-xs text-slate-500">10 hrs/week</p>
-                            </div>
+                        {/* Actual Screenshot */}
+                        <div className="bg-slate-800 overflow-hidden">
+                            <Image
+                                src="/teacherlanding_page.png"
+                                alt="NibbleLearn Platform Interface"
+                                width={1200}
+                                height={750}
+                                className="w-full h-auto object-cover"
+                            />
                         </div>
-
                     </div>
 
                     {/* Background Glow */}

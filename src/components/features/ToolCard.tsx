@@ -4,6 +4,7 @@ import React from "react"
 import { motion } from "framer-motion"
 import { ArrowRight, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
+import Link from "next/link"
 
 export interface ToolCardProps {
     title: string
@@ -32,16 +33,17 @@ export function ToolCard({
     className
 }: ToolCardProps) {
     return (
-        <motion.div
-            whileHover={{ y: -5 }}
-            initial="rest"
-            animate="rest"
-            whileTap="pressed"
-            className={cn(
-                "group relative bg-white rounded-2xl border border-slate-200 p-6 h-full flex flex-col transition-all duration-300 hover:shadow-xl hover:border-violet-200 overflow-hidden cursor-pointer",
-                className
-            )}
-        >
+        <Link href="/signup" className="block h-full outline-none">
+            <motion.div
+                whileHover={{ y: -5 }}
+                initial="rest"
+                animate="rest"
+                whileTap="pressed"
+                className={cn(
+                    "group relative bg-white rounded-2xl border border-slate-200 p-6 h-full flex flex-col transition-all duration-300 hover:shadow-xl hover:border-violet-200 overflow-hidden cursor-pointer",
+                    className
+                )}
+            >
             {/* Hover Image Background Reveal */}
             <div className="absolute inset-0 bg-slate-900 opacity-0 group-hover:opacity-10 transition-opacity duration-300 z-0" />
 
@@ -74,7 +76,7 @@ export function ToolCard({
             {/* Footer / CTA */}
             <div className="relative z-10 mt-6 pt-4 border-t border-slate-100 flex items-center justify-between group-hover:border-violet-100 transition-colors">
                 <span className="text-xs font-semibold text-slate-400 group-hover:text-violet-600 transition-colors">
-                    Try tool
+                    Try it
                 </span>
                 <div className="w-6 h-6 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-violet-100 transition-colors">
                     <ArrowRight className="w-3 h-3 text-slate-400 group-hover:text-violet-600" />
@@ -83,6 +85,7 @@ export function ToolCard({
 
             {/* Optional: Hover Image Overlay (if we had real images) */}
             {/* This would be an absolute positioned image that fades in */}
-        </motion.div>
+            </motion.div>
+        </Link>
     )
 }

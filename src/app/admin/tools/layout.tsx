@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Settings, Layers, Box, Cpu, Bell, 
   ChevronDown, ChevronRight, BarChart3, ListOrdered, 
   Menu, X, Fingerprint, Database, Building2, Package, ShieldCheck, Users,
-  Receipt
+  Receipt, LogOut, Terminal
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/components/providers/AuthContext';
@@ -85,7 +85,7 @@ const SidebarItem = ({ title, icon: Icon, children, href, isOpen, onToggle, acti
 };
 
 export default function AdminToolsLayout({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -156,10 +156,11 @@ export default function AdminToolsLayout({ children }: { children: React.ReactNo
               icon={Database}
               isOpen={openSections.includes('tools')}
               onToggle={() => toggleSection('tools')}
-              active={pathname.includes('/tools/library') || pathname.includes('/tools/categories') || pathname.includes('/tools/inputs')}
+              active={pathname.includes('/tools/library') || pathname.includes('/tools/categories') || pathname.includes('/tools/inputs') || pathname.includes('/tools/models')}
               children={[
                 { title: 'Tool Categories', href: '/admin/tools/categories', icon: Layers },
                 { title: 'AI Tools', href: '/admin/tools/library', icon: Box },
+                { title: 'Model Endpoints', href: '/admin/tools/models', icon: Terminal },
                 { title: 'Global Inputs', href: '/admin/tools/inputs', icon: Settings },
               ]}
             />
@@ -221,6 +222,13 @@ export default function AdminToolsLayout({ children }: { children: React.ReactNo
               <p className="text-sm font-bold text-gray-800 truncate">{user?.username || 'Admin User'}</p>
               <p className="text-[10px] text-gray-400 truncate">System Superuser</p>
             </div>
+            <button 
+              onClick={logout}
+              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+              title="Logout"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
           </div>
         </div>
       </aside>

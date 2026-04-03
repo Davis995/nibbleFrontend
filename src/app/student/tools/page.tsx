@@ -11,7 +11,7 @@ import {
     Bot, Users, ClipboardCheck, Layers, FileInput, FileMinus, ClipboardList, Brain,
     Book, Feather, Image as ImageIcon, Presentation, UserPlus, Terminal, Hourglass,
     CloudLightning, Languages, ShieldCheck, StickyNote, LifeBuoy, Calendar, MessageSquarePlus,
-    Filter, ChevronDown, Flame, TrendingUp, X
+    Filter, ChevronDown, Flame, TrendingUp, X, ChevronLeft, ChevronRight
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useStudentTheme } from "@/components/student/StudentThemeContext"
@@ -128,6 +128,41 @@ export default function StudentToolsPage() {
 
     const [isCategoryOpen, setIsCategoryOpen] = useState(false)
     const [isSearchFocused, setIsSearchFocused] = useState(false)
+
+    // Scroll Controls for Categories
+    const scrollRef = React.useRef<HTMLDivElement>(null)
+    const [showArrows, setShowArrows] = useState({ left: false, right: false })
+
+    const handleScroll = () => {
+        if (scrollRef.current) {
+            const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current
+            setShowArrows({
+                left: scrollLeft > 10,
+                right: scrollLeft < scrollWidth - clientWidth - 10
+            })
+        }
+    }
+
+    const scroll = (direction: 'left' | 'right') => {
+        if (scrollRef.current) {
+            const scrollAmount = 200
+            scrollRef.current.scrollBy({
+                left: direction === 'left' ? -scrollAmount : scrollAmount,
+                behavior: 'smooth'
+            })
+        }
+    }
+
+    useEffect(() => {
+        const timer = setTimeout(handleScroll, 500)
+        return () => clearTimeout(timer)
+    }, [categories])
+
+    useEffect(() => {
+        handleScroll()
+        window.addEventListener('resize', handleScroll)
+        return () => window.removeEventListener('resize', handleScroll)
+    }, [])
 
     const trendingTools = toolsData.filter(t => t.isHot).slice(0, 5)
 
@@ -295,24 +330,81 @@ export default function StudentToolsPage() {
             </motion.div> */}
 
             {/* Filter Controls */}
-            <div className="flex flex-col md:flex-row items-start md:items-center gap-4 -mx-6 px-6 md:mx-0 md:px-0">
-                <div id="tour-tools-categories" className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 no-scrollbar">
-                    {categories.map((cat) => (
-                        <button
-                            key={cat.id}
-                            onClick={() => setActiveCategory(cat.id)}
-                            className={cn(
-                                "px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap border",
-                                activeCategory === cat.id
-                                    ? "bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/25"
-                                    : isLight
-                                        ? "bg-white text-[#334155] border-slate-200 hover:border-blue-300 hover:text-blue-600"
-                                        : "bg-slate-900/80 text-slate-400 border-slate-800 hover:bg-slate-800 hover:text-slate-200"
-                            )}
-                        >
-                            {cat.label}
-                        </button>
-                    ))}
+            <div className="flex flex-col md:flex-row items-center gap-4">
+                <div className="relative flex-1 w-full md:w-auto group">
+                    {/* Left Mask */}
+                    <div className={cn(
+                        "absolute left-0 top-0 bottom-2 w-12 z-[5] pointer-events-none transition-opacity duration-300",
+                        showArrows.left ? "opacity-100" : "opacity-0",
+                        isLight ? "bg-gradient-to-r from-slate-50 to-transparent" : "bg-gradient-to-r from-slate-950 to-transparent"
+                    )} />
+
+                    {/* Right Mask */}
+                    <div className={cn(
+                        "absolute right-0 top-0 bottom-2 w-12 z-[5] pointer-events-none transition-opacity duration-300",
+                        showArrows.right ? "opacity-100" : "opacity-0",
+                        isLight ? "bg-gradient-to-r from-transparent to-slate-50" : "bg-gradient-to-r from-transparent to-slate-950"
+                    )} />
+
+                    {/* Left Arrow */}
+                    <AnimatePresence>
+                        {showArrows.left && (
+                            <motion.button
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -10 }}
+                                onClick={(e) => { e.preventDefault(); scroll('left'); }}
+                                className={cn(
+                                    "absolute left-2 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full shadow-xl backdrop-blur-md border transition-all active:scale-90",
+                                    isLight ? "bg-white/95 border-slate-200 text-slate-700 active:bg-slate-100" : "bg-slate-800/95 border-slate-700 text-white active:bg-slate-700"
+                                )}
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                            </motion.button>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Right Arrow */}
+                    <AnimatePresence>
+                        {showArrows.right && (
+                            <motion.button
+                                initial={{ opacity: 0, x: 10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 10 }}
+                                onClick={(e) => { e.preventDefault(); scroll('right'); }}
+                                className={cn(
+                                    "absolute right-2 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full shadow-xl backdrop-blur-md border transition-all active:scale-90",
+                                    isLight ? "bg-white/95 border-slate-200 text-slate-700 active:bg-slate-100" : "bg-slate-800/95 border-slate-700 text-white active:bg-slate-700"
+                                )}
+                            >
+                                <ChevronRight className="w-4 h-4" />
+                            </motion.button>
+                        )}
+                    </AnimatePresence>
+
+                    <div 
+                        id="tour-tools-categories" 
+                        ref={scrollRef}
+                        onScroll={handleScroll}
+                        className="flex items-center gap-2 overflow-x-auto w-full pb-2 md:pb-0 no-scrollbar scroll-smooth px-4"
+                    >
+                        {categories.map((cat) => (
+                            <button
+                                key={cat.id}
+                                onClick={() => setActiveCategory(cat.id)}
+                                className={cn(
+                                    "px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap border shrink-0",
+                                    activeCategory === cat.id
+                                        ? "bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/25"
+                                        : isLight
+                                            ? "bg-white text-[#334155] border-slate-200 hover:border-blue-300 hover:text-blue-600"
+                                            : "bg-slate-900/80 text-slate-400 border-slate-800 hover:bg-slate-800 hover:text-slate-200"
+                                )}
+                            >
+                                {cat.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {/* Favorites Filter */}
@@ -333,7 +425,7 @@ export default function StudentToolsPage() {
             </div>
 
             {/* Tools Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
                 {filteredTools.map((tool, index) => (
                     <motion.div
                         key={tool.id}
@@ -370,18 +462,18 @@ export default function StudentToolsPage() {
 
                         <div className="flex flex-col gap-4">
                             <div className={cn(
-                                "w-12 h-12 rounded-[14px] flex items-center justify-center",
+                                "w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-[14px] flex items-center justify-center shrink-0",
                                 isLight
                                     ? "bg-blue-50"
                                     : "bg-white/[0.1] shadow-inner"
                             )}>
-                                <tool.icon className={cn("w-6 h-6", isLight ? "text-[#2563EB]" : "text-blue-300")} />
+                                <tool.icon className={cn("w-5 h-5 md:w-6 md:h-6", isLight ? "text-[#2563EB]" : "text-blue-300")} />
                             </div>
                             <div className="space-y-1">
-                                <h3 className={cn("font-bold text-lg leading-tight", isLight ? "text-[#0F172A]" : "text-white")}>
+                                <h3 className={cn("font-bold text-sm md:text-lg leading-tight line-clamp-1 md:line-clamp-none", isLight ? "text-[#0F172A]" : "text-white")}>
                                     {tool.name}
                                 </h3>
-                                <p className={cn("text-xs leading-relaxed line-clamp-2 font-medium", isLight ? "text-[#334155]" : "text-slate-300")}>
+                                <p className={cn("text-[10px] md:text-xs leading-relaxed line-clamp-2 font-medium opacity-80 md:opacity-100", isLight ? "text-[#334155]" : "text-slate-300")}>
                                     {tool.desc}
                                 </p>
                             </div>

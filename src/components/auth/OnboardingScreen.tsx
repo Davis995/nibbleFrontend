@@ -51,16 +51,18 @@ export function OnboardingScreen() {
     const [plans, setPlans] = useState<PlanOption[]>([])
     const [allPlans, setAllPlans] = useState<{ individual: PlanOption[], enterprise: PlanOption[] }>({ individual: [], enterprise: [] })
 
-    // Helper to get iconography and styling based on plan theme or ID
-    const getPlanStyle = (theme: string, id: string) => {
-        if (id.includes('free')) {
+    // Helper to get iconography and styling based on plan theme or name
+    const getPlanStyle = (theme: string, name: string = "") => {
+        const checkStr = (theme || name || "").toLowerCase();
+        
+        if (checkStr.includes('free') || checkStr.includes('basic')) {
             return {
                 icon: <Sparkles className="w-6 h-6" />,
                 gradient: "from-slate-500 to-slate-600",
                 glowColor: "shadow-slate-500/20",
             }
         }
-        if (id.includes('pro') || id.includes('plus')) {
+        if (checkStr.includes('pro') || checkStr.includes('plus') || checkStr.includes('premium')) {
             return {
                 icon: <Crown className="w-6 h-6" />,
                 gradient: "from-violet-600 to-indigo-600",
@@ -92,7 +94,7 @@ export function OnboardingScreen() {
                     badge: p.badge,
                     features: p.features.filter((f: any) => f.included).map((f: any) => f.text),
                     displayOrder: p.displayOrder || 0,
-                    ...getPlanStyle(p.theme, p.id)
+                    ...getPlanStyle(p.theme, p.name)
                 })
 
                 const individual = data.individual

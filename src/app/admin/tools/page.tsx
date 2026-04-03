@@ -6,7 +6,7 @@ import {
   Layers, Box, CheckCircle, Star, Plus, 
   Settings, ListOrdered, BarChart3, 
   Activity, ShieldCheck, Zap, ArrowRight,
-  Info, CreditCard, UserPlus, Receipt
+  Info, CreditCard, UserPlus, Receipt, Terminal
 } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -109,6 +109,22 @@ export default function AdminDashboardPage() {
               </div>
               <Link href="/admin/tools/inputs" className="mt-8 flex items-center gap-2 font-black text-[11px] text-blue-600 uppercase tracking-widest hover:gap-4 transition-all">
                   Configure Inputs <ArrowRight className="w-4 h-4" />
+              </Link>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
+            className="p-8 bg-white rounded-[2.5rem] border border-gray-50 shadow-sm flex flex-col justify-between group hover:shadow-2xl hover:-translate-y-2 transition-all duration-500"
+          >
+              <div className="space-y-4">
+                  <div className="p-4 bg-indigo-50 rounded-2xl w-fit">
+                      <Terminal className="w-6 h-6 text-indigo-600" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-800">Model Endpoints</h3>
+                  <p className="text-sm text-gray-500 font-medium">Manage AI model configurations, token costs, credit multipliers, and charge overrides.</p>
+              </div>
+              <Link href="/admin/tools/models" className="mt-8 flex items-center gap-2 font-black text-[11px] text-blue-600 uppercase tracking-widest hover:gap-4 transition-all">
+                  Configure Models <ArrowRight className="w-4 h-4" />
               </Link>
           </motion.div>
 

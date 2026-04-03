@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from "react"
 import Link from "next/link"
-import { motion } from "framer-motion"
-import { Search, Star, Filter, Sparkles, FileText } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
+import { Search, Star, Filter, Sparkles, FileText, ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getToolConfig } from "@/components/tool/tool-registry"
 import { useTheme } from "@/components/providers/ThemeContext"
@@ -58,6 +58,41 @@ export default function TeacherToolsPage() {
     const isLight = theme === 'light'
     const { isFavorite, toggleFavorite } = useFavorites()
     const { tokens } = useAuth()
+
+    // Scroll Controls for Categories
+    const scrollRef = React.useRef<HTMLDivElement>(null)
+    const [showArrows, setShowArrows] = useState({ left: false, right: false })
+
+    const handleScroll = () => {
+        if (scrollRef.current) {
+            const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current
+            setShowArrows({
+                left: scrollLeft > 10,
+                right: scrollLeft < scrollWidth - clientWidth - 10
+            })
+        }
+    }
+
+    const scroll = (direction: 'left' | 'right') => {
+        if (scrollRef.current) {
+            const scrollAmount = 200
+            scrollRef.current.scrollBy({
+                left: direction === 'left' ? -scrollAmount : scrollAmount,
+                behavior: 'smooth'
+            })
+        }
+    }
+
+    useEffect(() => {
+        const timer = setTimeout(handleScroll, 500)
+        return () => clearTimeout(timer)
+    }, [categories])
+
+    useEffect(() => {
+        handleScroll()
+        window.addEventListener('resize', handleScroll)
+        return () => window.removeEventListener('resize', handleScroll)
+    }, [])
 
     useEffect(() => {
         const fetchCategories = async () => {
@@ -200,23 +235,80 @@ export default function TeacherToolsPage() {
                     ? "bg-slate-50/80 border border-slate-200/50"
                     : "bg-slate-950/80 border border-white/5"
             )}>
-                <div id="tour-tools-categories" className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 no-scrollbar">
-                    {categories.map((cat) => (
-                        <button
-                            key={cat.id}
-                            onClick={() => setActiveCategory(cat.id)}
-                            className={cn(
-                                "px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap border",
-                                activeCategory === cat.id
-                                    ? "bg-violet-600 text-white border-violet-600 shadow-lg shadow-violet-500/25"
-                                    : isLight
-                                        ? "bg-white text-slate-600 border-slate-200 hover:border-violet-300 hover:text-violet-600"
-                                        : "bg-white/5 text-slate-400 border-white/10 hover:bg-white/10 hover:text-white"
-                            )}
-                        >
-                            {cat.label}
-                        </button>
-                    ))}
+                <div className="relative flex-1 w-full md:w-auto group">
+                    {/* Left Mask */}
+                    <div className={cn(
+                        "absolute left-0 top-0 bottom-2 w-12 z-[5] pointer-events-none transition-opacity duration-300",
+                        showArrows.left ? "opacity-100" : "opacity-0",
+                        isLight ? "bg-gradient-to-r from-slate-50 to-transparent" : "bg-gradient-to-r from-slate-950 to-transparent"
+                    )} />
+
+                    {/* Right Mask */}
+                    <div className={cn(
+                        "absolute right-0 top-0 bottom-2 w-12 z-[5] pointer-events-none transition-opacity duration-300",
+                        showArrows.right ? "opacity-100" : "opacity-0",
+                        isLight ? "bg-gradient-to-r from-transparent to-slate-50" : "bg-gradient-to-r from-transparent to-slate-950"
+                    )} />
+
+                    {/* Left Arrow */}
+                    <AnimatePresence>
+                        {showArrows.left && (
+                            <motion.button
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -10 }}
+                                onClick={(e) => { e.preventDefault(); scroll('left'); }}
+                                className={cn(
+                                    "absolute left-2 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full shadow-xl backdrop-blur-md border transition-all active:scale-90",
+                                    isLight ? "bg-white/95 border-slate-200 text-slate-700 active:bg-slate-100" : "bg-slate-800/95 border-slate-700 text-white active:bg-slate-700"
+                                )}
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                            </motion.button>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Right Arrow */}
+                    <AnimatePresence>
+                        {showArrows.right && (
+                            <motion.button
+                                initial={{ opacity: 0, x: 10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 10 }}
+                                onClick={(e) => { e.preventDefault(); scroll('right'); }}
+                                className={cn(
+                                    "absolute right-2 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full shadow-xl backdrop-blur-md border transition-all active:scale-90",
+                                    isLight ? "bg-white/95 border-slate-200 text-slate-700 active:bg-slate-100" : "bg-slate-800/95 border-slate-700 text-white active:bg-slate-700"
+                                )}
+                            >
+                                <ChevronRight className="w-4 h-4" />
+                            </motion.button>
+                        )}
+                    </AnimatePresence>
+
+                    <div 
+                        id="tour-tools-categories" 
+                        ref={scrollRef}
+                        onScroll={handleScroll}
+                        className="flex items-center gap-2 overflow-x-auto w-full pb-2 md:pb-0 no-scrollbar scroll-smooth px-4"
+                    >
+                        {categories.map((cat) => (
+                            <button
+                                key={cat.id}
+                                onClick={() => setActiveCategory(cat.id)}
+                                className={cn(
+                                    "px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap border shrink-0",
+                                    activeCategory === cat.id
+                                        ? "bg-violet-600 text-white border-violet-600 shadow-lg shadow-violet-500/25"
+                                        : isLight
+                                            ? "bg-white text-slate-600 border-slate-200 hover:border-violet-300 hover:text-violet-600"
+                                            : "bg-white/5 text-slate-400 border-white/10 hover:bg-white/10 hover:text-white"
+                                )}
+                            >
+                                {cat.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 <div id="tour-tools-search" className="relative w-full md:w-96">
@@ -237,7 +329,7 @@ export default function TeacherToolsPage() {
             </div>
 
             {/* Tools Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
                 {filteredTools.map((tool: TeacherTool, index: number) => {
                     const favorited = tool.is_favorited ?? isFavorite(tool.id)
                     return (
@@ -261,12 +353,12 @@ export default function TeacherToolsPage() {
                                     <div className="flex justify-between items-start mb-4">
                                         <div
                                             className={cn(
-                                                "w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110 group-hover:rotate-3",
+                                                "w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110 group-hover:rotate-3 shrink-0",
                                                 !isHexColor(tool.color) && tool.color
                                             )}
                                             style={isHexColor(tool.color) ? { backgroundColor: tool.color } : undefined}
                                         >
-                                            <tool.icon className="w-6 h-6" />
+                                            <tool.icon className="w-5 h-5 md:w-6 md:h-6" />
                                         </div>
                                         <button
                                             onClick={async (e) => {
@@ -313,10 +405,10 @@ export default function TeacherToolsPage() {
                                         </button>
                                     </div>
 
-                                    <h3 className={cn("text-lg font-bold mb-2 transition-colors", isLight ? "text-slate-900 group-hover:text-violet-700" : "text-white group-hover:text-violet-300")}>
+                                    <h3 className={cn("text-sm md:text-lg font-bold mb-1 md:mb-2 transition-colors line-clamp-1 md:line-clamp-none", isLight ? "text-slate-900 group-hover:text-violet-700" : "text-white group-hover:text-violet-300")}>
                                         {tool.name}
                                     </h3>
-                                    <p className={cn("text-sm leading-relaxed mb-4 line-clamp-2", isLight ? "text-slate-600 font-medium" : "text-slate-400")}>
+                                    <p className={cn("text-[10px] md:text-sm leading-relaxed mb-4 line-clamp-2 opacity-80 md:opacity-100", isLight ? "text-slate-600 font-medium" : "text-slate-400")}>
                                         {tool.desc}
                                     </p>
                                 </div>

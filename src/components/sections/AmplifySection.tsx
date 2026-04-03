@@ -74,43 +74,14 @@ export function AmplifySection() {
                     </div>
 
                     <div className="bg-slate-900 rounded-2xl p-2 md:p-4 shadow-2xl ring-1 ring-slate-900/5">
-                        <div className="bg-slate-800 rounded-xl overflow-hidden aspect-[16/10] relative">
-                            {/* Placeholder for platform screenshot */}
-                            <div className="absolute inset-0 flex flex-col">
-                                {/* Fake UI Header */}
-                                <div className="h-12 bg-slate-900/50 border-b border-white/5 flex items-center px-4 gap-4">
-                                    <div className="flex gap-2">
-                                        <div className="w-3 h-3 rounded-full bg-red-500" />
-                                        <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                                        <div className="w-3 h-3 rounded-full bg-green-500" />
-                                    </div>
-                                    <div className="h-6 w-64 bg-white/10 rounded-full ml-4" />
-                                </div>
-                                {/* Fake UI Body */}
-                                <div className="flex-1 p-8 grid grid-cols-4 gap-6">
-                                    <div className="col-span-1 bg-white/5 rounded-lg h-full" />
-                                    <div className="col-span-3 grid grid-cols-2 gap-6">
-                                        <div className="bg-violet-500/20 border border-violet-500/30 rounded-xl p-6">
-                                            <div className="w-10 h-10 bg-violet-500 rounded-lg mb-4" />
-                                            <div className="h-4 w-32 bg-white/20 rounded mb-2" />
-                                            <div className="h-3 w-full bg-white/10 rounded" />
-                                        </div>
-                                        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-                                            <div className="w-10 h-10 bg-blue-500 rounded-lg mb-4" />
-                                            <div className="h-4 w-32 bg-white/20 rounded mb-2" />
-                                            <div className="h-3 w-full bg-white/10 rounded" />
-                                        </div>
-                                        {/* More fake cards */}
-                                        {[1, 2, 3, 4].map(n => (
-                                            <div key={n} className="bg-white/5 border border-white/10 rounded-xl p-6" />
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                <span className="text-white/20 font-bold text-4xl">Platform Interface Preview</span>
-                            </div>
+                        <div className="bg-slate-800 rounded-xl overflow-hidden relative">
+                            <Image
+                                src="/teacherlanding_page.png"
+                                alt="Platform Interface"
+                                width={1200}
+                                height={750}
+                                className="w-full h-auto object-cover"
+                            />
                         </div>
                     </div>
                 </motion.div>

@@ -183,14 +183,17 @@ function StudentLayoutContent({ children }: { children: React.ReactNode }) {
                             animate={{ x: 0 }}
                             exit={{ x: "-100%" }}
                             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                            className="fixed inset-y-0 left-0 z-50 w-72 md:hidden"
+                            className="fixed inset-y-0 left-0 z-50 w-64 md:hidden"
                         >
                             <div className="relative h-full">
                                 <button
                                     onClick={() => setIsMobileOpen(false)}
-                                    className="absolute top-4 right-4 p-2 text-white/70 hover:text-white z-10"
+                                    className={cn(
+                                        "absolute top-5 right-5 p-2 rounded-full z-20 transition-all active:scale-95 shadow-lg",
+                                        theme === 'dark' ? "bg-slate-800/80 text-white border border-white/10" : "bg-white/80 text-slate-900 border border-slate-200"
+                                    )}
                                 >
-                                    <X className="w-6 h-6" />
+                                    <X className="w-5 h-5" />
                                 </button>
                                 <StudentSidebar
                                     onCheckClicks={() => setIsMobileOpen(false)}

@@ -230,3 +230,10 @@ export const PaymentService = {
   },
 };
 
+export const AdminModelConfigService = {
+  fetchAll: () => fetchWithAuth('/tools/admin/models/'),
+  fetchDetail: (id: number) => fetchWithAuth(`/tools/admin/models/${id}/`),
+  create: (data: any) => fetchWithAuth('/tools/admin/models/', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: number, data: any) => fetchWithAuth(`/tools/admin/models/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+  delete: (id: number) => fetchWithAuth(`/tools/admin/models/${id}/`, { method: 'DELETE' }),
+};
