@@ -20,24 +20,28 @@ export default function LoginPage() {
         schoolEmail: "",
         studentCode: ""
     })
-    const { login, isLoading } = useAuth()
+    const { login, schoolLogin, isLoading } = useAuth()
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
         if (mode === "school") {
-            // For school mode, use the current logic
+            // For school mode, use the new schoolLogin API
             setSchoolLoading(true)
-            await new Promise(resolve => setTimeout(resolve, 1500))
-            setSchoolLoading(false)
-            window.location.href = "/school/dashboard"
+            try {
+                await schoolLogin({
+                    school_email: formData.schoolEmail,
+                    student_code: formData.studentCode
+                })
+            } finally {
+                setSchoolLoading(false)
+            }
         } else {
             // For login mode, use the API
             await login({
                 email: formData.email,
                 password: formData.password
             })
-            // Note: login handles loading and redirect, so no additional loading management needed
         }
     }
 
@@ -70,11 +74,11 @@ export default function LoginPage() {
     return (
         <div className="space-y-6">
             <div className="text-center">
-                <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">
-                    Welcome back
+                <h1 className="text-3xl font-bold text-white mb-2 tracking-tight transition-all duration-300">
+                    {mode === "school" ? "Join your school" : "Welcome back"}
                 </h1>
-                <p className="text-white/60 text-sm">
-                    {mode === "school" ? "Join your school" : "Log in to your account"}
+                <p className="text-white/60 text-sm transition-all duration-300">
+                    {mode === "school" ? "Enter your school details to continue" : "Log in to your account"}
                 </p>
             </div>
 

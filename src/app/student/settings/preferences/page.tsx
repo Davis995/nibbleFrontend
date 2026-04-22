@@ -5,12 +5,17 @@ import { SettingsSection } from "@/components/settings/SettingsSection"
 import { SettingsCard, SettingsCardContent } from "@/components/settings/SettingsCard"
 import { Check, Moon, Sun } from "lucide-react"
 import { useStudentTheme } from "@/components/student/StudentThemeContext"
+import { useAuth } from "@/components/providers/AuthContext"
+import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 
 export default function StudentPreferencesPage() {
     const { theme, toggleTheme } = useStudentTheme()
     const isLight = theme === 'light'
     const variant = isLight ? 'default' : 'glass'
+
+    const { user, updateOnboarding } = useAuth()
+    const isEnterprise = user?.user_type === 'enterprise'
 
     const handleThemeSelect = (selected: 'light' | 'dark') => {
         if (theme !== selected) {
@@ -70,6 +75,30 @@ export default function StudentPreferencesPage() {
                                 )}
                             </button>
                         ))}
+                    </SettingsCardContent>
+                </SettingsCard>
+            </SettingsSection>
+
+            <SettingsSection title="Experience" variant={variant}>
+                <SettingsCard variant={variant} className={cn(isLight && "bg-white border-2 border-slate-300 shadow-md")}>
+                    <SettingsCardContent className="space-y-6">
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <h3 className={cn("text-lg font-bold", isLight ? "text-slate-900" : "text-white")}>
+                                    Onboarding Tours
+                                </h3>
+                                <p className={cn("text-sm font-medium", isLight ? "text-slate-500" : "text-white/60")}>
+                                    {isEnterprise 
+                                        ? "Onboarding is mandatory for your organization." 
+                                        : "Show help tours and onboarding steps when you join."}
+                                </p>
+                            </div>
+                            <Switch
+                                checked={user?.onboarding ?? true}
+                                onCheckedChange={updateOnboarding}
+                                disabled={isEnterprise}
+                            />
+                        </div>
                     </SettingsCardContent>
                 </SettingsCard>
             </SettingsSection>

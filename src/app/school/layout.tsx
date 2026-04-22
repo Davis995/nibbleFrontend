@@ -8,6 +8,8 @@ import { useTheme } from "@/components/providers/ThemeContext"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { AuthGuard } from "@/components/auth/AuthGuard"
+import { SchoolOnboardingScreen } from "@/components/school/SchoolOnboardingScreen"
+import { useAuth } from "@/components/providers/AuthContext"
 
 export default function SchoolLayout({
     children,
@@ -19,31 +21,13 @@ export default function SchoolLayout({
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
     const notificationRef = useRef<HTMLDivElement>(null)
     const { theme } = useTheme()
+    const { user } = useAuth()
     // Enforce Light Mode for School Dashboard as per requirements (Clean White/Cream & Blue)
     // We can still respect the toggle if needed, but the default "school" look is requested to be specific.
     // For now I will stick to the dynamic theme but tweak colors to match "Landing Page" vibe.
     const isLight = theme === 'light'
 
-    const notifications = [
-        {
-            id: "1",
-            title: "Billing Successful",
-            description: "Your monthly plan has been renewed.",
-            time: "3h ago",
-            icon: CreditCard,
-            color: "text-emerald-500 bg-emerald-500/10",
-            isRead: false
-        },
-        {
-            id: "2",
-            title: "New Teacher Onboarded",
-            description: "Robert Fox is ready for setup.",
-            time: "6h ago",
-            icon: Users,
-            color: "text-blue-500 bg-blue-500/10",
-            isRead: false
-        }
-    ]
+    const notifications: any[] = []
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -57,6 +41,10 @@ export default function SchoolLayout({
 
     return (
         <AuthGuard>
+            {/* Onboarding Modal - Forces admin to complete setup if they haven't */}
+            {/* {user && user.org_orientation === false && (
+                <SchoolOnboardingScreen />
+            )} */}
             <div className={cn(
                 "min-h-screen font-sans selection:bg-blue-500/30 transition-colors duration-300",
                 isLight ? "bg-[#F8FAFC] text-slate-900" : "dark bg-slate-950 text-slate-100"

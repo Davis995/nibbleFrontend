@@ -98,7 +98,7 @@ export default function ToolPreviewPage() {
       const data = await response.json();
 
       if (!response.ok || data.success === false) {
-        throw new Error(data.message || data.detail || `Error ${response.status}`);
+        throw new Error(data.message || data.detail || "The AI request failed. Please check the tool configuration and inputs.");
       }
 
       // response field may vary — support common shapes
@@ -108,7 +108,7 @@ export default function ToolPreviewPage() {
       // Scroll result into view
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Something went wrong. Check the console.');
+      setErrorMsg(err.message || 'An unexpected error occurred while running the tool. Please try again.');
     } finally {
       setIsRunning(false);
     }

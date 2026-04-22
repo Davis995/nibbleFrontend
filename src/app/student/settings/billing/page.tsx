@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAuth } from "@/components/providers/AuthContext"
 import { useUsage } from "@/hooks/useUsage"
+import { usePlanPayment } from "@/hooks/usePlanPayment"
 
 interface PlanFeature {
     id: number;
@@ -36,12 +37,13 @@ interface Plan {
     is_popular: boolean;
     is_active: boolean;
     display_order: number;
+    currency: string;
     features: PlanFeature[];
 }
 
 export default function StudentBillingPage() {
     const { theme } = useStudentTheme()
-    const { tokens } = useAuth()
+    const { tokens, user } = useAuth()
     const isLight = theme === 'light'
     const variant = isLight ? 'default' : 'glass'
 
@@ -54,7 +56,11 @@ export default function StudentBillingPage() {
     const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null)
 
     const { data: usageData, refetch: refetchUsage } = useUsage()
-    const activePlan = plans.find(p => p.badge === "Active") || plans[0]
+    const { initiatePlanPayment, isLoading: isPaymentLoading } = usePlanPayment()
+    
+    const isFree = user?.subscription?.plan_name?.toLowerCase() === 'free'
+    const isPaid = (user?.subscription?.plan_name?.toLowerCase() !== 'free' && user?.subscription?.plan_name !== undefined) || plans.some(p => p.badge === "Active")
+    const activePlan = plans.find(p => p.badge === "Active") || (plans.length > 0 ? plans[0] : null)
 
     const creditsUsedPercentage = usageData?.usage_percentage ?? 0
     const monthlyLimit = usageData?.monthly_limit ?? activePlan?.total_credits ?? 0
@@ -82,7 +88,9 @@ export default function StudentBillingPage() {
                 
                 const data = await res.json()
                 if (data.plans) {
-                    const sortedPlans = (data.plans as Plan[]).sort((a: Plan, b: Plan) => (a.display_order || 0) - (b.display_order || 0))
+                    const sortedPlans = (data.plans as Plan[])
+                        .filter(p => p.plan_id !== 'free' && p.name.toLowerCase() !== 'free')
+                        .sort((a: Plan, b: Plan) => (a.display_order || 0) - (b.display_order || 0))
                     setPlans(sortedPlans)
                 } else {
                     throw new Error("Invalid data format")
@@ -181,10 +189,10 @@ export default function StudentBillingPage() {
 
                             <div className="grid grid-cols-2 gap-4 mt-6">
                                 {[
-                                    { pct: 10, price: "$2.99" },
-                                    { pct: 25, price: "$5.99" },
-                                    { pct: 50, price: "$9.99" },
-                                    { pct: 100, price: "$14.99" },
+                                    { pct: 10, price: "2.99" },
+                                    { pct: 25, price: "5.99" },
+                                    { pct: 50, price: "9.99" },
+                                    { pct: 100, price: "14.99" },
                                 ].map((opt) => (
                                     <button
                                         key={opt.pct}
@@ -198,7 +206,7 @@ export default function StudentBillingPage() {
                                     >
                                         <div className="text-xl font-black text-blue-500 mb-2">+{opt.pct}% Credits</div>
                                         <div className="px-3 py-1 rounded bg-blue-500 text-white text-xs font-bold shadow-sm">
-                                            {opt.price}
+                                            {activePlan?.currency || 'UGX'} {opt.price}
                                         </div>
                                     </button>
                                 ))}
@@ -223,7 +231,7 @@ export default function StudentBillingPage() {
                     <SettingsCardContent className="p-6 md:p-8 space-y-8">
                         <div>
                             <h2 className={cn("text-2xl font-bold mb-2", isLight ? "text-slate-900" : "text-white")}>
-                                {activePlan.name} Plan
+                                {isPaid ? (user?.subscription?.plan_name || activePlan?.name) : 'Free'} Plan
                             </h2>
                             <p className={cn("max-w-2xl font-medium", isLight ? "text-slate-500" : "text-white/60")}>
                                 {activePlan.description}
@@ -280,242 +288,255 @@ export default function StudentBillingPage() {
                 </SettingsCard>
             )}
 
-            {/* Pricing / Plans Section */}
-            <div>
-                <div className="flex justify-center mb-10">
-                    <div className={cn("relative rounded-full p-1 shadow-sm border", isLight ? "bg-white border-slate-200" : "bg-black/20 border-white/10 backdrop-blur-md")}>
-                        <div className="flex relative z-10">
-                            <button
-                                onClick={() => setBillingPeriod("annual")}
-                                className={cn(
-                                    "px-6 py-2 rounded-full text-sm font-semibold transition-colors duration-300",
-                                    billingPeriod === "annual"
-                                        ? "text-white"
-                                        : (isLight ? "text-slate-600 hover:text-slate-900" : "text-white/60 hover:text-white")
-                                )}
-                            >
-                                Annual
-                            </button>
-                            <button
-                                onClick={() => setBillingPeriod("monthly")}
-                                className={cn(
-                                    "px-6 py-2 rounded-full text-sm font-semibold transition-colors duration-300",
-                                    billingPeriod === "monthly"
-                                        ? "text-white"
-                                        : (isLight ? "text-slate-600 hover:text-slate-900" : "text-white/60 hover:text-white")
-                                )}
-                            >
-                                Monthly
-                            </button>
-                        </div>
-                        <motion.div
-                            className={cn("absolute top-1 bottom-1 rounded-full z-0 shadow-md", isLight ? "bg-blue-600" : "bg-blue-500")}
-                            initial={false}
-                            animate={{
-                                x: billingPeriod === "annual" ? 0 : "100%",
-                                width: "50%"
-                            }}
-                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                            style={{ left: 4 }}
-                        />
-                    </div>
-                    {billingPeriod === "annual" && (
-                        <motion.div
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            className="ml-4 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-bold flex items-center gap-1 shadow-sm border border-amber-200/50"
-                        >
-                            <Star className="w-3 h-3 fill-current" />
-                            Save 30%
-                        </motion.div>
-                    )}
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 md:gap-12 w-full max-w-5xl mx-auto">
-                    {plans.map((plan) => {
-                        const isCurrentPlan = plan.badge === "Active";
-
-                        return (
-                            <div
-                                key={plan.id}
-                                className={cn(
-                                    "relative rounded-[2rem] p-8 md:p-10 flex flex-col transition-all duration-300 h-fit",
-                                    plan.theme === "dark"
-                                        ? "bg-slate-900 text-white border-2 border-blue-500 shadow-2xl shadow-blue-500/10"
-                                        : (isLight ? "bg-white text-slate-900 border-2 border-slate-200 shadow-md" : "bg-white/5 text-white border-2 border-white/10 backdrop-blur-md shadow-lg")
-                                )}
-                            >
-                                {plan.badge && (
-                                    <div className={cn(
-                                        "absolute -top-3 right-6 px-4 py-1 rounded-full text-xs font-bold shadow-md",
-                                        plan.is_popular
-                                            ? "bg-blue-500 text-white shadow-blue-500/30"
-                                            : (isLight ? "bg-slate-100 text-slate-700 border-slate-200 border" : "bg-black/50 text-white/80 border-white/20 border")
-                                    )}>
-                                        {plan.badge}
-                                    </div>
-                                )}
-
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className={cn(
-                                        "w-10 h-10 rounded-xl flex items-center justify-center shadow-inner",
-                                        plan.theme === "dark" ? "bg-white/10" : (isLight ? "bg-blue-50" : "bg-blue-500/20")
-                                    )}>
-                                        <Sparkles className={cn("w-5 h-5", plan.theme === "dark" ? "text-blue-400" : "text-blue-500")} />
-                                    </div>
-                                    <h3 className="text-2xl font-bold">{plan.name} (Wide Mode)</h3>
-                                </div>
-
-                                <div className="mb-6">
-                                    <div className="flex flex-col space-y-2">
-                                        {billingPeriod === "annual" && Number(plan.monthly_price) > 0 && (
-                                            <div className={cn(
-                                                "text-xl line-through opacity-60 font-medium",
-                                                plan.theme === "dark" ? "text-slate-500" : (isLight ? "text-slate-400" : "text-white/40")
-                                            )}>
-                                                ${plan.monthly_price}/month
-                                            </div>
-                                        )}
-                                        <div className="flex flex-wrap items-baseline gap-2">
-                                            <span className="text-5xl font-black tracking-tighter leading-none">
-                                                ${billingPeriod === "annual" ? Number(plan.annual_price) : Number(plan.monthly_price)}
-                                            </span>
-                                            <span className={cn(
-                                                "text-lg font-bold opacity-80",
-                                                plan.theme === "dark" ? "text-slate-400" : (isLight ? "text-slate-500" : "text-white/50")
-                                            )}>
-                                                /mo
-                                            </span>
-                                        </div>
-                                    </div>
-                                    {billingPeriod === "annual" && Number(plan.annual_billed) > 0 && (
-                                        <p className={cn(
-                                            "text-sm mt-3 font-bold",
-                                            plan.theme === "dark" ? "text-blue-400" : (isLight ? "text-blue-600" : "text-blue-300")
-                                        )}>
-                                            ${plan.annual_billed} billed yearly
-                                        </p>
-                                    )}
-                                </div>
-
-                                <p className={cn(
-                                    "text-sm leading-relaxed mb-6 font-medium",
-                                    plan.theme === "dark" ? "text-slate-300" : (isLight ? "text-slate-600" : "text-white/70")
-                                )}>
-                                    {plan.description}
-                                </p>
-
-                                <ul className="space-y-4 mb-10">
-                                    {plan.features.sort((a, b) => a.order - b.order).map((feature) => (
-                                        <li key={feature.id} className="flex items-start gap-3">
-                                            <div className={cn(
-                                                "w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm",
-                                                feature.included
-                                                    ? "bg-blue-500 text-white shadow-blue-500/20"
-                                                    : (plan.theme === "dark" ? "bg-slate-700/50" : (isLight ? "bg-slate-100" : "bg-white/10"))
-                                            )}>
-                                                {feature.included
-                                                    ? <Check className="w-3 h-3 stroke-[3]" />
-                                                    : <X className={cn("w-3 h-3", plan.theme === "dark" ? "text-slate-500" : (isLight ? "text-slate-400" : "text-white/40"))} />
-                                                }
-                                            </div>
-                                            <span className={cn(
-                                                "text-sm font-medium",
-                                                !feature.included && "text-slate-500",
-                                                feature.highlight && "font-bold text-blue-600 dark:text-blue-400"
-                                            )}>
-                                                {feature.text}
-                                            </span>
-                                        </li>
-                                    ))}
-                                </ul>
-
-                                <Button
+            {/* Pricing / Plans Section - Only show if user is confirmed on a FREE plan */}
+            {isFree && (
+                <div>
+                    <div className="flex justify-center mb-10">
+                        <div className={cn("relative rounded-full p-1 shadow-sm border", isLight ? "bg-white border-slate-200" : "bg-black/20 border-white/10 backdrop-blur-md")}>
+                            <div className="flex relative z-10">
+                                <button
+                                    onClick={() => setBillingPeriod("annual")}
                                     className={cn(
-                                        "w-full h-12 rounded-xl text-base font-bold transition-all",
-                                        plan.theme === "dark"
-                                            ? "bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-600/20"
-                                            : isCurrentPlan
-                                                ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 cursor-default hover:bg-green-100 dark:hover:bg-green-900/30"
-                                                : (isLight ? "bg-slate-100 text-slate-700 hover:bg-slate-200" : "bg-white/10 text-white hover:bg-white/20")
+                                        "px-6 py-2 rounded-full text-sm font-semibold transition-colors duration-300",
+                                        billingPeriod === "annual"
+                                            ? "text-white"
+                                            : (isLight ? "text-slate-600 hover:text-slate-900" : "text-white/60 hover:text-white")
                                     )}
                                 >
-                                    {plan.cta}
-                                </Button>
+                                    Annual
+                                </button>
+                                <button
+                                    onClick={() => setBillingPeriod("monthly")}
+                                    className={cn(
+                                        "px-6 py-2 rounded-full text-sm font-semibold transition-colors duration-300",
+                                        billingPeriod === "monthly"
+                                            ? "text-white"
+                                            : (isLight ? "text-slate-600 hover:text-slate-900" : "text-white/60 hover:text-white")
+                                    )}
+                                >
+                                    Monthly
+                                </button>
                             </div>
-                        )
-                    })}
-                </div>
-            </div>
-
-            {/* Payment & History Section (Only if have a paid plan active usually, but showing as static for now based on user's theme) */}
-            <div className="space-y-8 mt-16 pt-8 border-t border-slate-200 dark:border-white/10">
-                <h2 className={cn("text-2xl font-bold px-1", isLight ? "text-slate-900" : "text-white")}>Payment Details</h2>
-
-                <SettingsSection title="Payment Method" variant={variant}>
-                    <SettingsCard variant={variant} className={cn(isLight && lightCardStyles)}>
-                        <SettingsCardContent className="flex items-center justify-between p-6">
-                            <div className="flex items-center gap-4">
-                                <div className={cn(
-                                    "w-12 h-12 rounded-xl flex items-center justify-center border-2",
-                                    isLight ? "bg-slate-50 border-slate-200" : "bg-black/20 border-white/10 shadow-inner"
-                                )}>
-                                    <CreditCard className={cn("w-6 h-6", isLight ? "text-slate-700" : "text-white/80")} />
-                                </div>
-                                <div>
-                                    <h3 className={cn("font-bold text-lg", isLight ? "text-slate-900" : "text-white")}>Visa ending in 4242</h3>
-                                    <p className={cn("text-sm font-medium", isLight ? "text-slate-800" : "text-white/50")}>Expires 12/28</p>
-                                </div>
-                            </div>
-                            <div className="flex gap-3">
-                                <Button variant="outline" className={cn("font-bold", isLight ? "border-slate-300 text-slate-700 hover:bg-slate-50" : "bg-transparent border-white/20 text-white hover:bg-white/10")}>Edit</Button>
-                            </div>
-                        </SettingsCardContent>
-                        <div className={cn("px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 border-t", isLight ? "bg-slate-50 border-slate-200" : "bg-black/20 border-white/5")}>
-                            <div className="text-sm">
-                                <span className={isLight ? "text-slate-500" : "text-white/60"}>Next billing date: </span>
-                                <span className={cn("font-bold", isLight ? "text-slate-900" : "text-white")}>May 21, 2026</span>
-                            </div>
-                            <Button variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 font-bold">Cancel Subscription</Button>
+                            <motion.div
+                                className={cn("absolute top-1 bottom-1 rounded-full z-0 shadow-md", isLight ? "bg-blue-600" : "bg-blue-500")}
+                                initial={false}
+                                animate={{
+                                    x: billingPeriod === "annual" ? 0 : "100%",
+                                    width: "50%"
+                                }}
+                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                style={{ left: 4 }}
+                            />
                         </div>
-                    </SettingsCard>
-                </SettingsSection>
+                        {billingPeriod === "annual" && (
+                            <motion.div
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                className="ml-4 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-bold flex items-center gap-1 shadow-sm border border-amber-200/50"
+                            >
+                                <Star className="w-3 h-3 fill-current" />
+                                Save 30%
+                            </motion.div>
+                        )}
+                    </div>
 
-                <SettingsSection title="Billing History" variant={variant}>
-                    <SettingsCard variant={variant} className={cn(isLight && lightCardStyles)}>
-                        <SettingsCardContent>
-                            <table className={cn("w-full text-left text-sm", isLight ? "text-slate-800" : "text-white/70")}>
-                                <thead>
-                                    <tr className={isLight ? "border-b-2 border-slate-200" : "border-b border-white/10"}>
-                                        <th className={cn("pb-3 font-bold text-base", isLight ? "text-slate-900" : "text-white")}>Date</th>
-                                        <th className={cn("pb-3 font-bold text-base", isLight ? "text-slate-900" : "text-white")}>Description</th>
-                                        <th className={cn("pb-3 font-bold text-base", isLight ? "text-slate-900" : "text-white")}>Amount</th>
-                                        <th className={cn("pb-3 font-bold text-base", isLight ? "text-slate-900" : "text-white")}>Invoice</th>
-                                    </tr>
-                                </thead>
-                                <tbody className={isLight ? "divide-y divide-slate-200" : "divide-y divide-white/5"}>
-                                    {[
-                                        { date: "Apr 21, 2026", desc: "Plus Student - Monthly", amount: "$9.00" },
-                                        { date: "Mar 21, 2026", desc: "Plus Student - Monthly", amount: "$9.00" },
-                                        { date: "Feb 21, 2026", desc: "Plus Student - Monthly", amount: "$9.00" },
-                                    ].map((row, i) => (
-                                        <tr key={i} className={cn("transition-colors", isLight ? "hover:bg-slate-50" : "hover:bg-white/5")}>
-                                            <td className="py-4 font-semibold">{row.date}</td>
-                                            <td className={cn("py-4 font-bold text-base", isLight ? "text-slate-900" : "text-white")}>{row.desc}</td>
-                                            <td className="py-4 font-bold">{row.amount}</td>
-                                            <td className="py-4">
-                                                <div className={cn("flex items-center gap-2 font-bold cursor-pointer hover:underline", isLight ? "text-blue-600" : "text-blue-400 hover:text-blue-300")}>
-                                                    <Download className="w-4 h-4" /> Download
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 md:gap-12 w-full max-w-5xl mx-auto">
+                        {plans.map((plan) => {
+                            const isCurrentPlan = plan.badge === "Active";
+
+                            return (
+                                <div
+                                    key={plan.id}
+                                    className={cn(
+                                        "relative rounded-[2rem] p-8 md:p-10 flex flex-col transition-all duration-300 h-fit",
+                                        plan.theme === "dark"
+                                            ? "bg-slate-900 text-white border-2 border-blue-500 shadow-2xl shadow-blue-500/10"
+                                            : (isLight ? "bg-white text-slate-900 border-2 border-slate-200 shadow-md" : "bg-white/5 text-white border-2 border-white/10 backdrop-blur-md shadow-lg")
+                                    )}
+                                >
+                                    {plan.badge && (
+                                        <div className={cn(
+                                            "absolute -top-3 right-6 px-4 py-1 rounded-full text-xs font-bold shadow-md",
+                                            plan.is_popular
+                                                ? "bg-blue-500 text-white shadow-blue-500/30"
+                                                : (isLight ? "bg-slate-100 text-slate-700 border-slate-200 border" : "bg-black/50 text-white/80 border-white/20 border")
+                                        )}>
+                                            {plan.badge}
+                                        </div>
+                                    )}
+
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className={cn(
+                                            "w-10 h-10 rounded-xl flex items-center justify-center shadow-inner",
+                                            plan.theme === "dark" ? "bg-white/10" : (isLight ? "bg-blue-50" : "bg-blue-500/20")
+                                        )}>
+                                            <Sparkles className={cn("w-5 h-5", plan.theme === "dark" ? "text-blue-400" : "text-blue-500")} />
+                                        </div>
+                                        <h3 className="text-2xl font-bold">{plan.name} (Wide Mode)</h3>
+                                    </div>
+
+                                    <div className="mb-6">
+                                        <div className="flex flex-col space-y-2">
+                                            {billingPeriod === "annual" && Number(plan.monthly_price) > 0 && (
+                                                <div className={cn(
+                                                    "text-xl line-through opacity-60 font-medium",
+                                                    plan.theme === "dark" ? "text-slate-500" : (isLight ? "text-slate-400" : "text-white/40")
+                                                )}>
+                                                    {plan.currency || 'UGX'} {plan.monthly_price}/month
                                                 </div>
-                                            </td>
+                                            )}
+                                            <div className="flex flex-wrap items-baseline gap-2">
+                                                <span className="text-5xl font-black tracking-tighter leading-none">
+                                                    {plan.currency || 'UGX'} {billingPeriod === "annual" ? Number(plan.annual_price) : Number(plan.monthly_price)}
+                                                </span>
+                                                <span className={cn(
+                                                    "text-lg font-bold opacity-80",
+                                                    plan.theme === "dark" ? "text-slate-400" : (isLight ? "text-slate-500" : "text-white/50")
+                                                )}>
+                                                    /mo
+                                                </span>
+                                            </div>
+                                        </div>
+                                        {billingPeriod === "annual" && Number(plan.annual_billed) > 0 && (
+                                            <p className={cn(
+                                                "text-sm mt-3 font-bold",
+                                                plan.theme === "dark" ? "text-blue-400" : (isLight ? "text-blue-600" : "text-blue-300")
+                                            )}>
+                                                {plan.currency || 'UGX'} {plan.annual_billed} billed yearly
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <p className={cn(
+                                        "text-sm leading-relaxed mb-6 font-medium",
+                                        plan.theme === "dark" ? "text-slate-300" : (isLight ? "text-slate-600" : "text-white/70")
+                                    )}>
+                                        {plan.description}
+                                    </p>
+
+                                    <ul className="space-y-4 mb-10">
+                                        {plan.features.sort((a, b) => a.order - b.order).map((feature) => (
+                                            <li key={feature.id} className="flex items-start gap-3">
+                                                <div className={cn(
+                                                    "w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm",
+                                                    feature.included
+                                                        ? "bg-blue-500 text-white shadow-blue-500/20"
+                                                        : (plan.theme === "dark" ? "bg-slate-700/50" : (isLight ? "bg-slate-100" : "bg-white/10"))
+                                                )}>
+                                                    {feature.included
+                                                        ? <Check className="w-3 h-3 stroke-[3]" />
+                                                        : <X className={cn("w-3 h-3", plan.theme === "dark" ? "text-slate-500" : (isLight ? "text-slate-400" : "text-white/40"))} />
+                                                    }
+                                                </div>
+                                                <span className={cn(
+                                                    "text-sm font-medium",
+                                                    !feature.included && "text-slate-500",
+                                                    feature.highlight && "font-bold text-blue-600 dark:text-blue-400"
+                                                )}>
+                                                    {feature.text}
+                                                </span>
+                                            </li>
+                                        ))}
+                                    </ul>
+
+                                    <Button
+                                        disabled={isPaymentLoading || isCurrentPlan}
+                                        onClick={() => {
+                                            if (!isCurrentPlan) {
+                                                initiatePlanPayment({ plan, billingPeriod })
+                                            }
+                                        }}
+                                        className={cn(
+                                            "w-full h-12 rounded-xl text-base font-bold transition-all",
+                                            plan.theme === "dark"
+                                                ? "bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-600/20"
+                                                : isCurrentPlan
+                                                    ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 cursor-default hover:bg-green-100 dark:hover:bg-green-900/30"
+                                                    : (isLight ? "bg-slate-100 text-slate-700 hover:bg-slate-200" : "bg-white/10 text-white hover:bg-white/20")
+                                        )}
+                                    >
+                                        {isPaymentLoading && !isCurrentPlan ? (
+                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        ) : null}
+                                        {plan.cta}
+                                    </Button>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {/* Payment & History Section (Only if have a paid plan active) */}
+            {isPaid && (
+                <div className="space-y-8 mt-16 pt-8 border-t border-slate-200 dark:border-white/10">
+                    <h2 className={cn("text-2xl font-bold px-1", isLight ? "text-slate-900" : "text-white")}>Payment Details</h2>
+
+                    <SettingsSection title="Payment Method" variant={variant}>
+                        <SettingsCard variant={variant} className={cn(isLight && lightCardStyles)}>
+                            <SettingsCardContent className="flex items-center justify-between p-6">
+                                <div className="flex items-center gap-4">
+                                    <div className={cn(
+                                        "w-12 h-12 rounded-xl flex items-center justify-center border-2",
+                                        isLight ? "bg-slate-50 border-slate-200" : "bg-black/20 border-white/10 shadow-inner"
+                                    )}>
+                                        <CreditCard className={cn("w-6 h-6", isLight ? "text-slate-700" : "text-white/80")} />
+                                    </div>
+                                    <div>
+                                        <h3 className={cn("font-bold text-lg", isLight ? "text-slate-900" : "text-white")}>Visa ending in 4242</h3>
+                                        <p className={cn("text-sm font-medium", isLight ? "text-slate-800" : "text-white/50")}>Expires 12/28</p>
+                                    </div>
+                                </div>
+                                <div className="flex gap-3">
+                                    <Button variant="outline" className={cn("font-bold", isLight ? "border-slate-300 text-slate-700 hover:bg-slate-50" : "bg-transparent border-white/20 text-white hover:bg-white/10")}>Edit</Button>
+                                </div>
+                            </SettingsCardContent>
+                            <div className={cn("px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 border-t", isLight ? "bg-slate-50 border-slate-200" : "bg-black/20 border-white/5")}>
+                                <div className="text-sm">
+                                    <span className={isLight ? "text-slate-500" : "text-white/60"}>Next billing date: </span>
+                                    <span className={cn("font-bold", isLight ? "text-slate-900" : "text-white")}>May 21, 2026</span>
+                                </div>
+                                <Button variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 font-bold">Cancel Subscription</Button>
+                            </div>
+                        </SettingsCard>
+                    </SettingsSection>
+
+                    <SettingsSection title="Billing History" variant={variant}>
+                        <SettingsCard variant={variant} className={cn(isLight && lightCardStyles)}>
+                            <SettingsCardContent>
+                                <table className={cn("w-full text-left text-sm", isLight ? "text-slate-800" : "text-white/70")}>
+                                    <thead>
+                                        <tr className={isLight ? "border-b-2 border-slate-200" : "border-b border-white/10"}>
+                                            <th className={cn("pb-3 font-bold text-base", isLight ? "text-slate-900" : "text-white")}>Date</th>
+                                            <th className={cn("pb-3 font-bold text-base", isLight ? "text-slate-900" : "text-white")}>Description</th>
+                                            <th className={cn("pb-3 font-bold text-base", isLight ? "text-slate-900" : "text-white")}>Amount</th>
+                                            <th className={cn("pb-3 font-bold text-base", isLight ? "text-slate-900" : "text-white")}>Invoice</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </SettingsCardContent>
-                    </SettingsCard>
-                </SettingsSection>
-            </div>
+                                    </thead>
+                                    <tbody className={isLight ? "divide-y divide-slate-200" : "divide-y divide-white/5"}>
+                                        {[
+                                            { date: "Apr 21, 2026", desc: "Plus Student - Monthly", amount: `${activePlan?.currency || 'UGX'} 20,000` },
+                                            { date: "Mar 21, 2026", desc: "Plus Student - Monthly", amount: `${activePlan?.currency || 'UGX'} 20,000` },
+                                            { date: "Feb 21, 2026", desc: "Plus Student - Monthly", amount: `${activePlan?.currency || 'UGX'} 20,000` },
+                                        ].map((row, i) => (
+                                            <tr key={i} className={cn("transition-colors", isLight ? "hover:bg-slate-50" : "hover:bg-white/5")}>
+                                                <td className="py-4 font-semibold">{row.date}</td>
+                                                <td className={cn("py-4 font-bold text-base", isLight ? "text-slate-900" : "text-white")}>{row.desc}</td>
+                                                <td className="py-4 font-bold">{row.amount}</td>
+                                                <td className="py-4">
+                                                    <div className={cn("flex items-center gap-2 font-bold cursor-pointer hover:underline", isLight ? "text-blue-600" : "text-blue-400 hover:text-blue-300")}>
+                                                        <Download className="w-4 h-4" /> Download
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </SettingsCardContent>
+                        </SettingsCard>
+                    </SettingsSection>
+                </div>
+            )}
         </div>
     )
 }

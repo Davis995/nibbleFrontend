@@ -3,6 +3,7 @@ import React from 'react';
 import { cn } from "@/lib/utils";
 import { Zap } from "lucide-react";
 import { useUsage } from '@/hooks/useUsage';
+import { useAuth } from '@/components/providers/AuthContext';
 
 interface TokenUsageProps {
     theme?: 'light' | 'dark';
@@ -11,6 +12,12 @@ interface TokenUsageProps {
 
 export const TokenUsage: React.FC<TokenUsageProps> = ({ theme = 'light', userType }) => {
     const { data: usage, isLoading, error } = useUsage();
+    const { user } = useAuth();
+
+    // Hide usage for enterprise users
+    if (user?.user_type === 'enterprise') {
+        return null;
+    }
 
     if (isLoading) {
         return (

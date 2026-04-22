@@ -109,10 +109,10 @@ export default function PublicToolPage() {
                     }
 
                     if (!data) {
-                        throw new Error(`Could not load tool configuration (${response.status})`)
+                        throw new Error("We couldn't find the tool you're looking for.")
                     }
                 } else {
-                    throw new Error(`Could not load tool configuration (${response.status})`)
+                    throw new Error("Unable to load tool settings. Please try again.")
                 }
 
                 if (!data) {
@@ -208,7 +208,7 @@ export default function PublicToolPage() {
             const result = await response.json()
 
             if (!response.ok || result.success === false) {
-                const message = result?.message || `Request failed with status ${response.status}`
+                const message = result?.message || "Something went wrong while processing your request. Please try again."
                 toast.error(message)
                 setOutput("")
             } else {

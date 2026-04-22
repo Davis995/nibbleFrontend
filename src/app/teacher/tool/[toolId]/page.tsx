@@ -118,14 +118,14 @@ export default function ToolPage() {
                     }
 
                     if (!data) {
-                        throw new Error(`Could not load tool configuration (${response.status})`)
+                        throw new Error("We couldn't find the tool setup you're looking for.")
                     }
                 } else {
-                    throw new Error(`Could not load tool configuration (${response.status})`)
+                    throw new Error("We're having trouble loading the tool settings. Please try again.")
                 }
 
                 if (!data) {
-                    throw new Error("Failed to load tool configuration data.")
+                    throw new Error("We couldn't retrieve the tool data. Please refresh the page.")
                 }
 
                 const registryConfig = getToolConfig(toolId)
@@ -156,9 +156,9 @@ export default function ToolPage() {
                 const fallbackConfig = getToolConfig(toolId)
                 if (fallbackConfig) {
                     setConfig(fallbackConfig)
-                    toast.error("Failed to load tool config from API; using local fallback.")
+                    toast.error("We're having trouble connecting to our servers, but I've loaded a backup version so you can continue.")
                 } else {
-                    toast.error("Unable to load tool configuration.")
+                    toast.error("I'm unable to load the tool settings right now. Please try refreshing the page.")
                 }
             }
         }
@@ -266,7 +266,7 @@ export default function ToolPage() {
             const result = await response.json()
 
             if (!response.ok || result.success === false) {
-                const message = result?.message || `Request failed with status ${response.status}`
+                const message = result?.message || "There was an error processing your request. Please try again or check your inputs."
                 toast.error(message)
                 setOutput("")
                 setViewStatus('input')
@@ -279,7 +279,7 @@ export default function ToolPage() {
             }
         } catch (error) {
             console.error("AI request failed", error)
-            toast.error("Network error: could not reach the AI request endpoint.")
+            toast.error("I couldn't reach the AI engine. Please check your internet connection.")
             setOutput("")
             setViewStatus('input')
         } finally {

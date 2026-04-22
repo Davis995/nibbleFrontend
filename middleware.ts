@@ -31,13 +31,16 @@ export function middleware(request: NextRequest) {
     '/tools'
   ]
 
-  // Check if the path is public
+  // Check if the path is public or a static asset
   const isPublicPath = publicPaths.some(publicPath =>
     path === publicPath || path.startsWith(`${publicPath}/`)
   )
 
-  // If it's a public path, allow the request
-  if (isPublicPath) {
+  // Allow common static files (images, icons, etc.)
+  const isStaticAsset = /\.(png|jpg|jpeg|gif|svg|ico|webp|webmanifest|xml|txt)$/.test(path)
+
+  // If it's a public path or a static asset, allow the request
+  if (isPublicPath || isStaticAsset) {
     return NextResponse.next()
   }
 
@@ -64,6 +67,6 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 }

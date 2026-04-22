@@ -159,10 +159,10 @@ export default function BillingOverview() {
 
                             <div className="grid grid-cols-2 gap-4 mt-6">
                                 {[
-                                    { pct: 10, price: "$49" },
-                                    { pct: 25, price: "$99" },
-                                    { pct: 50, price: "$179" },
-                                    { pct: 100, price: "$299" },
+                                    { pct: 10, price: "49" },
+                                    { pct: 25, price: "99" },
+                                    { pct: 50, price: "179" },
+                                    { pct: 100, price: "299" },
                                 ].map((opt) => (
                                     <button
                                         key={opt.pct}
@@ -176,7 +176,7 @@ export default function BillingOverview() {
                                     >
                                         <div className="text-xl font-black text-indigo-500 mb-2">+{opt.pct}% Credits</div>
                                         <div className="px-3 py-1 rounded bg-indigo-500 text-white text-xs font-bold shadow-sm">
-                                            {opt.price}
+                                            {billingData?.currency || 'UGX'} {opt.price}
                                         </div>
                                     </button>
                                 ))}

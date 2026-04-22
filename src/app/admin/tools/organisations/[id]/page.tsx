@@ -1,11 +1,12 @@
 "use client";
 
-import React, { use } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { use, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { OrganisationService } from '../../services/api';
 import { 
   Building2, Users, Activity, CreditCard, Clock, MapPin, Search, Plus, 
-  ArrowLeft, ArrowRight, ShieldCheck, CheckCircle2, XCircle, AlertTriangle, FileBarChart
+  ArrowLeft, ArrowRight, ShieldCheck, CheckCircle2, XCircle, AlertTriangle, FileBarChart,
+  Power, Zap, TrendingUp, Settings2
 } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -14,10 +15,40 @@ export default function OrganisationDetailsPage({ params }: { params: Promise<{ 
   const resolvedParams = use(params);
   const schoolId = resolvedParams.id;
 
-  const { data: resp, isLoading } = useQuery({
-    queryKey: ['admin-school-monitoring', schoolId],
-    queryFn: () => OrganisationService.fetchMonitoring(schoolId),
-  });
+   const { data: resp, isLoading } = useQuery({
+     queryKey: ['admin-school-monitoring', schoolId],
+     queryFn: () => OrganisationService.fetchMonitoring(schoolId),
+   });
+ 
+   const queryClient = useQueryClient();
+   const [topupPercentage, setTopupPercentage] = useState(10);
+   const [selectedPlan, setSelectedPlan] = useState('Basic');
+ 
+   const toggleMutation = useMutation({
+     mutationFn: () => OrganisationService.toggleActive(schoolId),
+     onSuccess: () => {
+       queryClient.invalidateQueries({ queryKey: ['admin-school-monitoring', schoolId] });
+     },
+     onError: (err: any) => alert(err.message)
+   });
+ 
+   const upgradeMutation = useMutation({
+     mutationFn: (plan: string) => OrganisationService.assignPlan(schoolId, plan),
+     onSuccess: () => {
+       queryClient.invalidateQueries({ queryKey: ['admin-school-monitoring', schoolId] });
+       alert(`Successfully assigned ${selectedPlan} plan`);
+     },
+     onError: (err: any) => alert(err.message)
+   });
+ 
+   const topupMutation = useMutation({
+     mutationFn: (percent: number) => OrganisationService.topupCredits(schoolId, percent),
+     onSuccess: () => {
+       queryClient.invalidateQueries({ queryKey: ['admin-school-monitoring', schoolId] });
+       alert(`Successfully topped up credits by ${topupPercentage}%`);
+     },
+     onError: (err: any) => alert(err.message)
+   });
 
   if (isLoading) return <div className="p-10 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>;
   if (!resp?.data) return <div className="p-10 text-center text-red-500">Failed to load organisation data.</div>;
@@ -55,6 +86,96 @@ export default function OrganisationDetailsPage({ params }: { params: Promise<{ 
             <p className="text-gray-500 font-medium font-mono text-sm tracking-tight">{school.id}</p>
           </div>
         </div>
+      </div>
+ 
+      {/* Admin Management Powers */}
+      <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-xl relative overflow-hidden">
+         <div className="absolute top-0 right-0 p-8 opacity-10">
+            <ShieldCheck className="w-48 h-48" />
+         </div>
+         <div className="relative z-10">
+            <h3 className="font-black text-xs text-blue-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                <Settings2 className="w-4 h-4"/> Admin Management Powers
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+               {/* Deactivate/Activate */}
+               <div className="space-y-4">
+                  <h4 className="font-bold text-lg flex items-center gap-2">
+                    <Power className={`w-5 h-5 ${school.is_active ? 'text-red-400' : 'text-emerald-400'}`} />
+                    System Status
+                  </h4>
+                  <p className="text-slate-400 text-sm">Temporarily disable or enable all access for this entire organisation.</p>
+                  <button 
+                    onClick={() => toggleMutation.mutate()}
+                    disabled={toggleMutation.isPending}
+                    className={`w-full py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${
+                      school.is_active 
+                        ? 'bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500 hover:text-white' 
+                        : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500 hover:text-white'
+                    }`}
+                  >
+                    {toggleMutation.isPending ? 'Processing...' : school.is_active ? 'Deactivate School' : 'Activate School'}
+                  </button>
+               </div>
+ 
+               {/* Assign Plan */}
+               <div className="space-y-4">
+                  <h4 className="font-bold text-lg flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-amber-400" />
+                    Assign Plan
+                  </h4>
+                  <p className="text-slate-400 text-sm">Force upgrade or change the current subscription plan for this school.</p>
+                  <div className="flex gap-2">
+                     <select 
+                        value={selectedPlan}
+                        onChange={(e) => setSelectedPlan(e.target.value)}
+                        className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm flex-1"
+                     >
+                        <option value="Basic">Basic</option>
+                        <option value="Standard">Standard</option>
+                        <option value="Premium">Premium</option>
+                        <option value="Enterprise">Enterprise</option>
+                     </select>
+                     <button 
+                        onClick={() => upgradeMutation.mutate(selectedPlan)}
+                        disabled={upgradeMutation.isPending}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                     >
+                        Apply
+                     </button>
+                  </div>
+               </div>
+ 
+               {/* Add Credits */}
+               <div className="space-y-4">
+                  <h4 className="font-bold text-lg flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-blue-400" />
+                    Top-up Credits
+                  </h4>
+                  <p className="text-slate-400 text-sm">Manually inject additional AI tokens based on the current plan limit.</p>
+                  <div className="flex gap-2">
+                     <select 
+                        value={topupPercentage}
+                        onChange={(e) => setTopupPercentage(Number(e.target.value))}
+                        className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm flex-1"
+                     >
+                        <option value={10}>+10% Credits</option>
+                        <option value={25}>+25% Credits</option>
+                        <option value={50}>+50% Credits</option>
+                        <option value={100}>+100% Credits</option>
+                     </select>
+                     <button 
+                        onClick={() => topupMutation.mutate(topupPercentage)}
+                        disabled={topupMutation.isPending}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                     >
+                        Inject
+                     </button>
+                  </div>
+               </div>
+            </div>
+         </div>
       </div>
 
       {alerts.length > 0 && (

@@ -62,7 +62,7 @@ function ToolPageContent() {
                     }
                 }
 
-                if (!data) throw new Error("Failed to load tool configuration data.")
+                if (!data) throw new Error("We couldn't find the magic tool you're looking for.")
 
                 const registryConfig = getToolConfig(toolId)
                 const mappedInputs = Array.isArray(data.inputs) ? data.inputs.map((input: any) => ({
@@ -101,7 +101,7 @@ function ToolPageContent() {
                 const fallback = getToolConfig(toolId)
                 if (fallback) {
                     setTool(fallback)
-                    toast.error("Failed to load from API; using fallback.")
+                    toast.error("We're having trouble reaching the main server, but I've loaded a backup version for you!")
                 }
             }
         }
@@ -197,7 +197,7 @@ function ToolPageContent() {
             const data = await response.json()
 
             if (!response.ok || data.success === false) {
-                toast.error(data?.message || `Request failed with status ${response.status}`)
+                toast.error(data?.message || "Oops! Something went wrong while creating your magic. Please try again.")
                 setViewStatus('input')
             } else {
                 setResult(String(data?.data || ""))
@@ -207,7 +207,7 @@ function ToolPageContent() {
             }
         } catch (error) {
             console.error(error)
-            toast.error("Network error.")
+            toast.error("I'm having trouble connecting to the magic engine. Please check your internet!")
             setViewStatus('input')
         }
     }

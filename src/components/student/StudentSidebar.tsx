@@ -130,22 +130,24 @@ export function StudentSidebar({ onCheckClicks }: StudentSidebarProps) {
             <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-800">
 
                 {/* Upgrade Button */}
-                {/* Token Usage or Upgrade Button */}
-                {isPlusUser ? (
-                    <TokenUsage theme={theme} userType="student" />
-                ) : (
-                    <Link
-                        href="/student/upgrade"
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-[1.02] transition-all group"
-                    >
-                        <div className="p-1 rounded bg-white/20">
-                            <Zap className="w-4 h-4 fill-current" />
-                        </div>
-                        <div className="flex-1">
-                            <p className="text-sm font-bold">Upgrade to Plus</p>
-                            <p className="text-[10px] opacity-80 font-medium">Unlock all AI tools</p>
-                        </div>
-                    </Link>
+                {/* Token Usage or Upgrade Button - Hidden for Enterprise Users */}
+                {user?.user_type !== 'enterprise' && (
+                    isPlusUser ? (
+                        <TokenUsage theme={theme} userType="student" />
+                    ) : (
+                        <Link
+                            href="/student/upgrade"
+                            className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-[1.02] transition-all group"
+                        >
+                            <div className="p-1 rounded bg-white/20">
+                                <Zap className="w-4 h-4 fill-current" />
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-sm font-bold">Upgrade to Plus</p>
+                                <p className="text-[10px] opacity-80 font-medium">Unlock all AI tools</p>
+                            </div>
+                        </Link>
+                    )
                 )}
 
                 {/* Theme Toggle */}
@@ -185,9 +187,11 @@ export function StudentSidebar({ onCheckClicks }: StudentSidebarProps) {
                         </h4>
                         
                     </div>
-                    <Link href="/student/settings" className="transition-colors text-slate-800 hover:text-blue-700 dark:text-slate-400 dark:hover:text-white">
-                        <Settings className="w-4 h-4" />
-                    </Link>
+                    {user?.user_type !== 'enterprise' && (
+                        <Link href="/student/settings" className="transition-colors text-slate-800 hover:text-blue-700 dark:text-slate-400 dark:hover:text-white">
+                            <Settings className="w-4 h-4" />
+                        </Link>
+                    )}
                 </div>
             </div>
         </aside>

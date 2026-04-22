@@ -17,15 +17,14 @@ import {
 import { useTheme } from "@/components/providers/ThemeContext"
 import { useAuth } from "@/components/providers/AuthContext"
 import { cn } from "@/lib/utils"
-import { SchoolOnboardingScreen } from "@/components/school/SchoolOnboardingScreen"
 import dynamic from 'next/dynamic'
-const SchoolTour = dynamic(() => import("../../../components/school/SchoolTour"), { ssr: false })
+// const SchoolTour = dynamic(() => import("../../../components/school/SchoolTour"), { ssr: false })
 
 
 
 export default function SchoolDashboard() {
     const { theme } = useTheme()
-    const { user, plan, tokens } = useAuth()
+    const { user, plan, tokens, updateOrgOrientation } = useAuth()
     const isLight = theme === 'light'
     
     const [dashboardData, setDashboardData] = useState<any>(null)
@@ -56,6 +55,12 @@ export default function SchoolDashboard() {
                 }
 
                 const data = await response.json();
+                
+                // Sync orientation status if provided
+                if (data.orientation_required === true && user?.org_orientation !== false) {
+                    updateOrgOrientation(false);
+                }
+
                 setDashboardData(data);
             } catch (err) {
                 console.error("Dashboard fetch error:", err);
@@ -88,9 +93,9 @@ export default function SchoolDashboard() {
     const summary = dashboardData?.summary || {};
     const school = dashboardData?.school || {};
 
-    const totalStudents = summary.total_students ?? "3,420";
-    const totalTeachers = summary.total_staff ?? "148";
-    const activeUsers = summary.total_active_users ?? "2,840";
+    const totalStudents = summary.total_students ?? 0;
+    const totalTeachers = summary.total_staff ?? 0;
+    const activeUsers = summary.total_active_users ?? 0;
     
     // Usage data mapping
     const totalStartCredits = summary.total_start_credits ?? 60000;
@@ -131,13 +136,8 @@ export default function SchoolDashboard() {
 
     return (
         <>
-            {/* Onboarding Modal - Forces admin to complete setup if they haven't */}
-            {user && user.org_orientation === false && (
-                <SchoolOnboardingScreen />
-            )}
-
             {/* Guided Tour - Triggers for new users or manually */}
-            <SchoolTour />
+            {/* <SchoolTour /> */}
 
             <div className="space-y-8">
                 {/* Header */}

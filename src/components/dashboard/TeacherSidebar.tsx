@@ -144,8 +144,8 @@ export function TeacherSidebar({ onMobileClose }: SidebarProps) {
             {/* Bottom Section */}
             <div className="p-4 border-t space-y-2 border-violet-200 dark:border-white/10">
 
-                {/* Token Usage for Plus Users */}
-                {isPlusUser && (
+                {/* Token Usage for Plus Users - Hidden for Enterprise Users */}
+                {isPlusUser && user?.user_type !== 'enterprise' && (
                     <TokenUsage theme={theme} userType="teacher" />
                 )}
 
@@ -188,9 +188,11 @@ export function TeacherSidebar({ onMobileClose }: SidebarProps) {
                         </h4>
                         <p className="text-xs truncate text-slate-600 dark:text-slate-400">{plan?.plan_name || "Free"}</p>
                     </div>
-                    <Link id="tour-sidebar-settings" href="/teacher/settings" className="transition-colors text-slate-400 hover:text-violet-700 dark:text-slate-500 dark:hover:text-white">
-                        <Settings className="w-4 h-4" />
-                    </Link>
+                    {user?.user_type !== 'enterprise' && (
+                        <Link id="tour-sidebar-settings" href="/teacher/settings" className="transition-colors text-slate-400 hover:text-violet-700 dark:text-slate-500 dark:hover:text-white">
+                            <Settings className="w-4 h-4" />
+                        </Link>
+                    )}
                 </div>
             </div>
         </aside>

@@ -62,7 +62,7 @@ function ResultContent() {
                         </div>
                         <div className="flex justify-between">
                             <span className="text-slate-500">Amount Paid</span>
-                            <span className="font-medium">$499.00</span>
+                            <span className="font-medium">UGX 499,000.00</span>
                         </div>
                         <div className="flex justify-between">
                             <span className="text-slate-500">Next Billing</span>

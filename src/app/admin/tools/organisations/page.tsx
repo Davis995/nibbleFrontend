@@ -41,9 +41,11 @@ export default function OrganisationsPage() {
       name: data.name,
       school_email: data.school_email,
       max_students: Number(data.max_students),
-      admin_username: data.admin_username,
+      admin_username: data.admin_email, // Use email as username
       admin_email: data.admin_email,
       admin_password: data.admin_password,
+      admin_first_name: data.admin_first_name,
+      admin_last_name: data.admin_last_name,
     });
   };
 
@@ -213,7 +215,6 @@ export default function OrganisationsPage() {
                   <div className="space-y-1 col-span-2">
                     <label className="text-sm font-bold text-gray-700">Admin Login Email (Username)</label>
                     <input name="admin_email" type="email" required className="w-full px-4 py-2 bg-slate-50 border border-gray-200 rounded-xl" placeholder="principal@liberty.edu" />
-                    <input type="hidden" name="admin_username" value="generated_on_submit" />
                   </div>
                   <div className="space-y-1 col-span-2">
                     <label className="text-sm font-bold text-gray-700">Temporary Password</label>

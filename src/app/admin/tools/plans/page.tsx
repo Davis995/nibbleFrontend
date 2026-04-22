@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { PlanService } from '../services/api';
+import { PlanService, FeatureService } from '../services/api';
 import { 
   Package, Plus, Search, ArrowRight, Edit2, Trash2, 
   CheckCircle2, XCircle, Star, BadgeCheck, Zap, 
@@ -13,9 +13,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
-interface PlanFeature {
-  id?: number;
+export interface Feature {
+  id: number;
   text: string;
+  order: number;
+}
+
+export interface PlanFeature {
+  id?: number;
+  feature_id?: number | null;
+  text?: string;
   included: boolean;
   highlight: boolean;
   order: number;
@@ -39,15 +46,21 @@ interface Plan {
   cta: string;
   is_popular: boolean;
   is_active: boolean;
+  display_order: number;
   features: PlanFeature[];
 }
 
 export default function PlansManagementPage() {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isFeatureModalOpen, setIsFeatureModalOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'basic' | 'pricing' | 'features'>('basic');
+
+  // Feature Management State
+  const [newFeatureText, setNewFeatureText] = useState('');
+  const [newFeatureOrder, setNewFeatureOrder] = useState(0);
 
   // Form State
   const [formData, setFormData] = useState<Partial<Plan>>({
@@ -67,6 +80,7 @@ export default function PlansManagementPage() {
     cta: 'Select Plan',
     is_popular: false,
     is_active: true,
+    display_order: 0,
     features: []
   });
 
@@ -75,8 +89,36 @@ export default function PlansManagementPage() {
     queryFn: () => PlanService.fetchAll({ search }),
   });
 
-  const plans = (plansResponse as any)?.results || [] as Plan[];
+  const { data: globalFeaturesResponse, refetch: refetchFeatures } = useQuery({
+    queryKey: ['admin-features'],
+    queryFn: () => FeatureService.fetchAll(),
+  });
 
+  const plans = (plansResponse as any)?.results || [] as Plan[];
+  const globalFeatures = (globalFeaturesResponse as any)?.results || [] as Feature[];
+
+  // Mutations for Features
+  const createFeatureMutation = useMutation({
+    mutationFn: FeatureService.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-features'] });
+      setNewFeatureText('');
+      setNewFeatureOrder(0);
+      toast.success('Global feature created');
+    },
+    onError: (err: any) => toast.error(err.message || 'Failed to create feature')
+  });
+
+  const deleteFeatureMutation = useMutation({
+    mutationFn: FeatureService.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-features'] });
+      toast.success('Feature removed');
+    },
+    onError: (err: any) => toast.error(err.message || 'Failed to delete feature')
+  });
+
+  // Mutations for Plans (existing)
   const createMutation = useMutation({
     mutationFn: PlanService.create,
     onSuccess: () => {
@@ -127,6 +169,7 @@ export default function PlansManagementPage() {
         cta: 'Select Plan',
         is_popular: false,
         is_active: true,
+        display_order: 0,
         features: []
       });
     }
@@ -155,6 +198,7 @@ export default function PlansManagementPage() {
 
   const addFeature = () => {
     const newFeature: PlanFeature = {
+      feature_id: null,
       text: '',
       included: true,
       highlight: false,
@@ -190,13 +234,22 @@ export default function PlansManagementPage() {
             Design pricing structures, define token economies, and model AI model accessibility.
           </p>
         </div>
-        <button 
-          onClick={handleOpenAdd}
-          className="px-8 py-4 bg-indigo-600 text-white font-bold rounded-2xl flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-600/20 active:scale-95 group"
-        >
-          <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
-          Create New Tier
-        </button>
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => setIsFeatureModalOpen(true)}
+            className="px-6 py-4 bg-white text-gray-600 font-bold rounded-2xl flex items-center gap-2 hover:bg-gray-50 transition-all border border-gray-100 shadow-sm active:scale-95 group"
+          >
+            <ListOrdered className="w-5 h-5 text-indigo-500 group-hover:rotate-12 transition-transform" />
+            Manage Features
+          </button>
+          <button 
+            onClick={handleOpenAdd}
+            className="px-8 py-4 bg-indigo-600 text-white font-bold rounded-2xl flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-600/20 active:scale-95 group"
+          >
+            <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+            Create New Tier
+          </button>
+        </div>
       </div>
 
       {/* Main Content Area */}
@@ -420,50 +473,82 @@ export default function PlansManagementPage() {
                           </div>
                        </div>
 
-                       <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Marketing Description</label>
-                          <textarea 
-                             className="w-full px-5 py-4 bg-slate-50 border border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 outline-none font-medium h-24 resize-none"
-                             value={formData.description}
-                             onChange={e => setFormData({...formData, description: e.target.value})}
-                             placeholder="Summary shown on listing cards..."
-                          />
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                           <div className="space-y-2">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Marketing Description</label>
+                              <textarea 
+                                 className="w-full px-5 py-4 bg-slate-50 border border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 outline-none font-medium h-24 resize-none"
+                                 value={formData.description}
+                                 onChange={e => setFormData({...formData, description: e.target.value})}
+                                 placeholder="Summary shown on listing cards..."
+                              />
+                           </div>
+                           <div className="space-y-2">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Display Priority Order</label>
+                              <input 
+                                 type="number"
+                                 className="w-full px-5 py-4 bg-slate-50 border border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 outline-none font-black text-indigo-600"
+                                 value={formData.display_order}
+                                 onChange={e => setFormData({...formData, display_order: Number(e.target.value)})}
+                                 placeholder="0 (First), 1, 2..."
+                              />
+                           </div>
                        </div>
 
-                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                          <div className="space-y-2">
-                             <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Account Type</label>
-                             <select 
-                                className="w-full px-5 py-4 bg-slate-50 border border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 outline-none font-bold"
-                                value={formData.use_type}
-                                onChange={e => setFormData({...formData, use_type: e.target.value as any})}
-                             >
-                                <option value="individual">Individual / Pilot</option>
-                                <option value="enterprise">Multi-Seat Enterprise</option>
-                             </select>
-                          </div>
-                          <div className="space-y-2">
-                             <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Visual Theme</label>
-                             <select 
-                                className="w-full px-5 py-4 bg-slate-50 border border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 outline-none font-bold"
-                                value={formData.theme}
-                                onChange={e => setFormData({...formData, theme: e.target.value as any})}
-                             >
-                                <option value="cream">Cream (Classic)</option>
-                                <option value="dark">Dark (Premium)</option>
-                                <option value="light">High Contrast Light</option>
-                             </select>
-                          </div>
-                          <div className="space-y-2">
-                             <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Plan Badge</label>
-                             <input 
-                                className="w-full px-5 py-4 bg-slate-50 border border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 outline-none font-bold text-amber-600"
-                                value={formData.badge}
-                                onChange={e => setFormData({...formData, badge: e.target.value})}
-                                placeholder="e.g. MOST POPULAR"
-                             />
-                          </div>
-                       </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                           <div className="space-y-2">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Account Type</label>
+                              <select 
+                                 className="w-full px-5 py-4 bg-slate-50 border border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 outline-none font-bold"
+                                 value={formData.use_type}
+                                 onChange={e => setFormData({...formData, use_type: e.target.value as any})}
+                              >
+                                 <option value="individual">Individual / Pilot</option>
+                                 <option value="enterprise">Multi-Seat Enterprise</option>
+                              </select>
+                           </div>
+                           <div className="space-y-2">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Visual Theme</label>
+                              <select 
+                                 className="w-full px-5 py-4 bg-slate-50 border border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 outline-none font-bold"
+                                 value={formData.theme}
+                                 onChange={e => setFormData({...formData, theme: e.target.value as any})}
+                              >
+                                 <option value="cream">Cream (Classic)</option>
+                                 <option value="dark">Dark (Premium)</option>
+                                 <option value="light">High Contrast Light</option>
+                              </select>
+                           </div>
+                           <div className="space-y-2">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Plan Badge</label>
+                              <input 
+                                 className="w-full px-5 py-4 bg-slate-50 border border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 outline-none font-bold text-amber-600"
+                                 value={formData.badge}
+                                 onChange={e => setFormData({...formData, badge: e.target.value})}
+                                 placeholder="e.g. MOST POPULAR"
+                              />
+                           </div>
+                        </div>
+
+                        <div className="space-y-3">
+                           <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 flex items-center gap-2">
+                              <Layers className="w-3 h-3 text-indigo-500" />
+                              AI Model Permissions (Comma Separated)
+                           </label>
+                           <input 
+                              className="w-full px-5 py-4 bg-slate-50 border border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 outline-none font-medium"
+                              value={formData.allowed_modals?.join(', ')}
+                              onChange={e => setFormData({...formData, allowed_modals: e.target.value.split(',').map(s => s.trim()).filter(s => s !== '')})}
+                              placeholder="e.g. gpt-4o-mini, gpt-4o, deepseek-chat"
+                           />
+                           <div className="flex flex-wrap gap-2 mt-2">
+                              {formData.allowed_modals?.map((modal, i) => (
+                                 <span key={i} className="px-2 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-tighter rounded-md border border-indigo-100">
+                                    {modal}
+                                 </span>
+                              ))}
+                           </div>
+                        </div>
 
                        <div className="flex flex-wrap gap-8 items-center pt-4 px-2">
                           <label className="flex items-center gap-4 cursor-pointer group">
@@ -594,13 +679,22 @@ export default function PlansManagementPage() {
                           {formData.features?.map((feature, idx) => (
                             <div key={idx} className="bg-slate-50 p-6 rounded-2xl border border-gray-100 flex flex-col md:flex-row gap-6 relative group">
                                <div className="flex-1 space-y-2">
-                                  <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Benefit/Feature Text</label>
-                                  <input 
+                                  <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Global Feature Instance</label>
+                                  <select
                                      className="w-full px-4 py-2 bg-white border border-gray-100 rounded-xl outline-none font-bold text-sm"
-                                     value={feature.text}
-                                     onChange={(e) => updateFeature(idx, 'text', e.target.value)}
-                                     placeholder="e.g. 50+ Lesson Templates"
-                                  />
+                                     value={feature.feature_id || ''}
+                                     onChange={(e) => {
+                                        const fId = Number(e.target.value);
+                                        const globalFeat = globalFeatures.find((g: Feature) => g.id === fId);
+                                        updateFeature(idx, 'feature_id', fId);
+                                        updateFeature(idx, 'text', globalFeat?.text || '');
+                                     }}
+                                  >
+                                     <option value="" disabled>Select a feature...</option>
+                                     {globalFeatures.map((gf: Feature) => (
+                                         <option key={gf.id} value={gf.id}>{gf.text}</option>
+                                     ))}
+                                  </select>
                                </div>
                                <div className="flex items-center gap-8 pt-4">
                                   <div className="flex flex-col items-center gap-1.5 cursor-pointer" onClick={() => updateFeature(idx, 'included', !feature.included)}>
@@ -666,6 +760,112 @@ export default function PlansManagementPage() {
                     {editingPlan ? 'Commit Configuration' : 'Release Tier'}
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      
+      {/* Global Feature Management Modal */}
+      <AnimatePresence>
+        {isFeatureModalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div 
+               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+               onClick={() => setIsFeatureModalOpen(false)}
+               className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+            />
+            
+            <motion.div 
+               initial={{ scale: 0.9, opacity: 0, y: 20 }}
+               animate={{ scale: 1, opacity: 1, y: 0 }}
+               exit={{ scale: 0.9, opacity: 0, y: 20 }}
+               className="relative bg-white rounded-[3rem] shadow-2xl w-full max-w-2xl flex flex-col max-h-[85vh] overflow-hidden"
+            >
+              <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-slate-50/10">
+                <div className="flex items-center gap-4">
+                   <div className="p-3 bg-indigo-50 rounded-2xl">
+                      <ListOrdered className="w-6 h-6 text-indigo-600" />
+                   </div>
+                   <div>
+                      <h2 className="text-2xl font-black text-gray-900 tracking-tight">Feature Registry</h2>
+                      <p className="text-sm text-gray-400 font-medium">Standardize features across all subscription tiers.</p>
+                   </div>
+                </div>
+                <button onClick={() => setIsFeatureModalOpen(false)} className="p-3 hover:bg-slate-100 rounded-2xl transition-all text-gray-400">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-8 flex-1 overflow-y-auto custom-scrollbar">
+                {/* Create New Feature */}
+                <div className="mb-10 bg-indigo-50/30 p-6 rounded-[2rem] border border-indigo-100/50">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-indigo-900 mb-4 ml-1">Register New Capability</h3>
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <input 
+                            className="flex-1 px-5 py-4 bg-white border border-indigo-100 rounded-2xl outline-none font-bold text-sm focus:ring-4 focus:ring-indigo-600/5 transition-all"
+                            placeholder="Feature name (e.g. Multi-seat Dashboard)"
+                            value={newFeatureText}
+                            onChange={e => setNewFeatureText(e.target.value)}
+                        />
+                        <input 
+                            type="number"
+                            className="w-full md:w-24 px-4 py-4 bg-white border border-indigo-100 rounded-2xl outline-none font-black text-center"
+                            placeholder="Order"
+                            value={newFeatureOrder}
+                            onChange={e => setNewFeatureOrder(Number(e.target.value))}
+                        />
+                        <button 
+                            onClick={() => createFeatureMutation.mutate({ text: newFeatureText, order: newFeatureOrder })}
+                            disabled={!newFeatureText || createFeatureMutation.isPending}
+                            className="px-8 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-lg shadow-indigo-600/20 active:scale-95 transition-all disabled:opacity-50"
+                        >
+                            {createFeatureMutation.isPending ? 'Saving...' : 'Add'}
+                        </button>
+                    </div>
+                </div>
+
+                {/* List Existing Features */}
+                <div className="space-y-4">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Global Catalog</h3>
+                    {globalFeatures.length === 0 ? (
+                        <div className="p-12 text-center border-2 border-dashed border-gray-100 rounded-[2rem]">
+                            <p className="text-gray-300 font-bold uppercase tracking-widest text-[10px]">Registry is empty</p>
+                        </div>
+                    ) : (
+                        <div className="grid gap-3">
+                            {globalFeatures.map((feat: Feature) => (
+                                <div key={feat.id} className="flex items-center justify-between p-5 bg-white border border-gray-100 rounded-2xl hover:border-indigo-200 transition-all group">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-[10px] font-black text-gray-400 border border-gray-100">
+                                            {feat.order}
+                                        </div>
+                                        <span className="font-bold text-gray-700">{feat.text}</span>
+                                    </div>
+                                    <button 
+                                        onClick={() => {
+                                            if(window.confirm('Delete this feature? It will be removed from all plans using it.')) {
+                                                deleteFeatureMutation.mutate(feat.id);
+                                            }
+                                        }}
+                                        className="p-2 text-gray-300 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+              </div>
+
+              <div className="p-8 border-t border-gray-50 flex justify-end bg-slate-50/10">
+                <button 
+                    onClick={() => setIsFeatureModalOpen(false)}
+                    className="px-10 py-4 bg-slate-900 text-white font-black uppercase tracking-widest text-[11px] rounded-2xl shadow-xl shadow-slate-900/20 hover:bg-slate-800 transition-all"
+                >
+                    Close Registry
+                </button>
               </div>
             </motion.div>
           </div>

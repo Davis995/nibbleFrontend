@@ -10,6 +10,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { AuthGuard } from "@/components/auth/AuthGuard"
+import { OnboardingGuard } from "@/components/auth/OnboardingGuard"
 import { useTheme } from "@/components/providers/ThemeContext"
 import { useAuth } from "@/components/providers/AuthContext"
 import { useNotifications } from "@/hooks/useNotifications"
@@ -224,11 +225,13 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     // StudentThemeProvider is removed as it's redundant with the root ThemeProvider
     return (
         <AuthGuard>
-            <StudentProfileProvider>
-                <StudentFavoritesProvider>
-                    <StudentLayoutContent>{children}</StudentLayoutContent>
-                </StudentFavoritesProvider>
-            </StudentProfileProvider>
+            <OnboardingGuard>
+                <StudentProfileProvider>
+                    <StudentFavoritesProvider>
+                        <StudentLayoutContent>{children}</StudentLayoutContent>
+                    </StudentFavoritesProvider>
+                </StudentProfileProvider>
+            </OnboardingGuard>
         </AuthGuard>
     )
 }

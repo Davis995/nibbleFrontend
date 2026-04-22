@@ -5,7 +5,7 @@ import Link from "next/link"
 import { motion } from "framer-motion"
 import { ArrowRight, Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { authService } from "@/lib/authService.js"
+import { authService } from "@/lib/authService"
 import toast from "react-hot-toast"
 
 export default function SignupPage() {

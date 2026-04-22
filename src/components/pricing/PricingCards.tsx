@@ -191,7 +191,7 @@ export function PricingCards() {
                             transition={{ delay: index * 0.1 }}
                             whileHover={{ y: -8 }}
                             className={cn(
-                                "relative rounded-3xl p-8 transition-all duration-300",
+                                "relative flex flex-col h-full rounded-3xl p-8 transition-all duration-300",
                                 plan.theme === "dark"
                                     ? "bg-slate-900 text-white border-2 border-amber-400 shadow-2xl shadow-amber-500/10"
                                     : "bg-amber-50/50 text-slate-900 border-2 border-slate-200 shadow-xl",
@@ -278,7 +278,7 @@ export function PricingCards() {
                             </p>
 
                             {/* Features */}
-                            <ul className="space-y-3 mb-8">
+                            <ul className="space-y-3 mb-8 flex-1">
                                 {plan.features.map((feature, i) => (
                                     <li key={i} className="flex items-start gap-3">
                                         <div className={cn(

@@ -2,7 +2,11 @@ export const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || 'http://localh
 
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers || {});
-  headers.set('Content-Type', 'application/json');
+  
+  // Only set Content-Type to JSON if it's not FormData and not already set
+  if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
 
   if (typeof window !== 'undefined') {
     const tokensStr = localStorage.getItem('tokens');
@@ -25,7 +29,24 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.detail || `API error: ${response.statusText}`);
+    
+    let errorMessage = errorData.message || errorData.error_detail || errorData.detail || '';
+    
+    // If there's a detailed 'errors' object (common in DRF/our custom responses), flatten it
+    if (errorData.errors && typeof errorData.errors === 'object') {
+      const fieldErrors = Object.entries(errorData.errors)
+        .map(([field, msgs]) => {
+          const message = Array.isArray(msgs) ? msgs.join(', ') : String(msgs);
+          return `${field}: ${message}`;
+        })
+        .join('\n');
+      
+      errorMessage = errorMessage 
+        ? `${errorMessage}\n${fieldErrors}`
+        : fieldErrors;
+    }
+    
+    throw new Error(errorMessage || `API error: ${response.statusText}`);
   }
 
   if (response.status === 204) {
@@ -118,6 +139,15 @@ export const ToolService = {
   create: (data: any) => fetchWithAuth('/tools/', { method: 'POST', body: JSON.stringify(data) }),
   update: (slug: string, data: any) => fetchWithAuth(`/tools/${slug}/`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (slug: string) => fetchWithAuth(`/tools/${slug}/`, { method: 'DELETE' }),
+  bulkImport: (data: any[] | FormData) => {
+    const options: RequestInit = { method: 'POST' };
+    if (data instanceof FormData) {
+      options.body = data;
+    } else {
+      options.body = JSON.stringify(data);
+    }
+    return fetchWithAuth('/tools/admin/bulk-import/', options);
+  },
 };
 
 export const InputService = {
@@ -138,7 +168,10 @@ export const OrganisationService = {
   },
   create: (data: any) => fetchWithAuth('/schools/', { method: 'POST', body: JSON.stringify(data) }),
   fetchAlerts: () => fetchWithAuth('/schools/alerts/'),
-  fetchMonitoring: (id: string) => fetchWithAuth(`/schools/${id}/monitoring//`),
+  fetchMonitoring: (id: string) => fetchWithAuth(`/schools/${id}/monitoring/`),
+  toggleActive: (id: string) => fetchWithAuth(`/schools/${id}/toggle-active/`, { method: 'PATCH' }),
+  assignPlan: (id: string, planName: string) => fetchWithAuth(`/schools/${id}/upgrade/`, { method: 'PATCH', body: JSON.stringify({ newPlan: planName }) }),
+  topupCredits: (id: string, percentage: number) => fetchWithAuth(`/schools/${id}/billing/topup/`, { method: 'POST', body: JSON.stringify({ percentage }) }),
 };
 
 export const PlanService = {
@@ -154,6 +187,19 @@ export const PlanService = {
   create: (data: any) => fetchWithAuth('/auth/admin/plans/', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: number, data: any) => fetchWithAuth(`/auth/admin/plans/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
   delete: (id: number) => fetchWithAuth(`/auth/admin/plans/${id}/`, { method: 'DELETE' }),
+};
+
+export const FeatureService = {
+  fetchAll: (params?: { search?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.search) searchParams.set('search', params.search);
+    const qs = searchParams.toString();
+    return fetchWithAuth(`/auth/admin/features/${qs ? `?${qs}` : ''}`);
+  },
+  fetchDetail: (id: number) => fetchWithAuth(`/auth/admin/features/${id}/`),
+  create: (data: { text: string; order: number }) => fetchWithAuth('/auth/admin/features/', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: number, data: { text?: string; order?: number }) => fetchWithAuth(`/auth/admin/features/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+  delete: (id: number) => fetchWithAuth(`/auth/admin/features/${id}/`, { method: 'DELETE' }),
 };
 
 export const UserService = {
@@ -227,6 +273,54 @@ export const PaymentService = {
     if (params?.subscription) searchParams.set('subscription', params.subscription);
     const qs = searchParams.toString();
     return fetchWithAuth(`/payments/admin/audits/${qs ? `?${qs}` : ''}`);
+  },
+  fetchAnalytics: (params?: { start_date?: string; end_date?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.start_date) searchParams.set('start_date', params.start_date);
+    if (params?.end_date) searchParams.set('end_date', params.end_date);
+    const qs = searchParams.toString();
+    return fetchWithAuth(`/payments/admin/payments/analytics/${qs ? `?${qs}` : ''}`);
+  },
+  exportPayments: async (params?: { 
+    search?: string; 
+    status?: string; 
+    payment_type?: string;
+    start_date?: string;
+    end_date?: string;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.search) searchParams.set('search', params.search);
+    if (params?.status) searchParams.set('status', params.status);
+    if (params?.payment_type) searchParams.set('payment_type', params.payment_type);
+    if (params?.start_date) searchParams.set('start_date', params.start_date);
+    if (params?.end_date) searchParams.set('end_date', params.end_date);
+    
+    const qs = searchParams.toString();
+    const url = `${API_BASE_URL}/payments/admin/payments/export/${qs ? `?${qs}` : ''}`;
+    
+    // For downloads, we use window.open or a direct fetch with blob handling
+    const tokensStr = localStorage.getItem('tokens');
+    let accessToken = '';
+    if (tokensStr) {
+      try { accessToken = JSON.parse(tokensStr)?.access; } catch (e) {}
+    }
+
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    });
+
+    if (!response.ok) throw new Error('Export failed');
+    
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.setAttribute('download', `payments_export_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   },
 };
 

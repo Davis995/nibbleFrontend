@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import { authService } from '@/lib/authService.js';
+import { authService } from '@/lib/authService';
 
 interface User {
   id: number;
@@ -41,6 +41,7 @@ interface AuthContextType {
   plan: any;
   isLoading: boolean;
   login: (credentials: { email: string; password: string }) => Promise<void>;
+  schoolLogin: (credentials: { school_email: string; student_code: string }) => Promise<void>;
   logout: () => void;
   setSession: (data: { user: User; tokens: Tokens }) => void;
   redirectToDashboardByRole: (role: string | null) => void;
@@ -177,6 +178,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const schoolLogin = async (credentials: { school_email: string; student_code: string }) => {
+    console.log('School login attempt:', credentials);
+    try {
+      setIsLoading(true);
+      const data = await authService.schoolLogin(credentials);
+      console.log('School login success:', data);
+
+      setSession(data);
+      toast.success(data.message || 'Login successful');
+
+      // Check onboarding for students
+      if (data.user.onboarding === false) {
+        window.location.href = '/onboarding';
+      } else {
+        redirectToDashboardByRole(data.user.role);
+      }
+    } catch (error) {
+      console.error('School login error:', error);
+      toast.error((error as Error).message || 'School login failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const logout = async () => {
     try {
       // Call logout API if we have tokens
@@ -219,6 +244,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     plan,
     isLoading,
     login,
+    schoolLogin,
     logout,
     setSession,
     redirectToDashboardByRole,

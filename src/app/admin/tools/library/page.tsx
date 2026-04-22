@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Edit2, Trash2, X, AlertCircle, Check, Star, GripVertical, Settings, Eye, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, X, AlertCircle, Check, Star, GripVertical, Settings, Eye, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, Layers, Upload, Info, FileSpreadsheet } from 'lucide-react';
 import { ToolService, CategoryService } from '../services/api';
 import Link from 'next/link';
 
@@ -47,6 +47,9 @@ export default function ToolsLibraryPage() {
   const debouncedSearch = useDebounce(searchTerm, 400);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [bulkJson, setBulkJson] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [activeTab, setActiveTab] = useState<'general' | 'inputs'>('general');
   const [editingTool, setEditingTool] = useState<Tool | null>(null);
 
@@ -116,6 +119,22 @@ export default function ToolsLibraryPage() {
   const deleteMutation = useMutation({
     mutationFn: ToolService.delete,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ai-tools'] })
+  });
+
+  const bulkImportMutation = useMutation({
+    mutationFn: (data: any) => ToolService.bulkImport(data),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['ai-tools'] });
+      queryClient.invalidateQueries({ queryKey: ['tool-categories'] });
+      setIsBulkModalOpen(false);
+      setBulkJson('');
+      setSelectedFile(null);
+      alert(`Successfully imported ${data.created_count} tools.`);
+    },
+    onError: (error: any) => {
+      console.error('Bulk import error:', error);
+      alert(`Bulk import failed: ${error.message}`);
+    }
   });
 
   const openModal = (tool?: Tool) => {
@@ -268,6 +287,13 @@ export default function ToolsLibraryPage() {
           >
             <Download className="w-4 h-4" />
             Export Logs (CSV)
+          </button>
+          <button 
+            onClick={() => setIsBulkModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors font-medium shadow-sm"
+          >
+            <Layers className="w-4 h-4" />
+            Bulk Import
           </button>
           <button 
             onClick={() => openModal()}
@@ -665,6 +691,179 @@ export default function ToolsLibraryPage() {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Import Modal */}
+      {isBulkModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-gray-50">
+              <div className="flex items-center gap-3">
+                 <div className="p-2 bg-blue-50 rounded-lg">
+                    <Layers className="w-5 h-5 text-blue-600" />
+                 </div>
+                 <div>
+                    <h3 className="text-xl font-bold text-gray-900">Bulk Tool Import</h3>
+                    <p className="text-xs text-gray-500">Import multiple tools via Excel, CSV or JSON.</p>
+                 </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setIsBulkModalOpen(false);
+                  setSelectedFile(null);
+                }} 
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Instructions & Headers */}
+                  <div className="lg:col-span-1 space-y-4">
+                     <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                        <div className="flex items-center gap-2 mb-2 text-blue-800 font-bold text-sm">
+                           <Info className="w-4 h-4" />
+                           Excel/CSV Headers
+                        </div>
+                        <p className="text-xs text-blue-700 mb-3 leading-relaxed">
+                           Ensure your file contains these column names. Order does not matter.
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 text-[10px]">
+                           {[
+                              'name', 'slug', 'category_name', 'category_type', 'system_prompt', 
+                              'user_prompt_template', 'is_premium', 'is_recommended', 'inputs'
+                           ].map(header => (
+                              <span key={header} className="px-2 py-0.5 bg-white border border-blue-200 rounded text-blue-600 font-mono">
+                                 {header}
+                              </span>
+                           ))}
+                           <span className="px-2 py-0.5 bg-white border border-blue-200 rounded text-gray-400 italic">+ more</span>
+                        </div>
+                     </div>
+
+                     <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
+                        <div className="flex items-center gap-2 mb-2 text-amber-800 font-bold text-sm">
+                           <AlertCircle className="w-4 h-4" />
+                           Wait!
+                        </div>
+                        <p className="text-xs text-amber-700 leading-relaxed">
+                           Uploading a file will ignore any text pasted in the JSON field below.
+                        </p>
+                     </div>
+                  </div>
+
+                  {/* File Upload Section */}
+                  <div className="lg:col-span-2 space-y-6">
+                     <div className="space-y-2">
+                        <label className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Option 1: Upload File</label>
+                        <div 
+                          className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center transition-all ${
+                            selectedFile ? 'border-emerald-200 bg-emerald-50' : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/30'
+                          }`}
+                        >
+                           <input 
+                             type="file" 
+                             id="bulk-file-upload" 
+                             className="hidden" 
+                             accept=".xlsx,.xls,.csv" 
+                             onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                           />
+                           {selectedFile ? (
+                              <>
+                                 <div className="p-3 bg-emerald-100 rounded-full mb-3">
+                                    <FileSpreadsheet className="w-6 h-6 text-emerald-600" />
+                                 </div>
+                                 <p className="text-sm font-bold text-emerald-800">{selectedFile.name}</p>
+                                 <p className="text-xs text-emerald-600 mb-4">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+                                 <button 
+                                   onClick={() => setSelectedFile(null)}
+                                   className="text-xs text-red-500 font-bold hover:underline"
+                                 >
+                                    Remove File
+                                 </button>
+                              </>
+                           ) : (
+                              <>
+                                 <div className="p-3 bg-gray-100 rounded-full mb-3 group-hover:bg-blue-100 transition-colors">
+                                    <Upload className="w-6 h-6 text-gray-400 group-hover:text-blue-500" />
+                                 </div>
+                                 <p className="text-sm text-gray-600 font-medium">Click to select or drag and drop</p>
+                                 <p className="text-xs text-gray-400 mt-1">Supports XLSX, XLS, CSV</p>
+                                 <label 
+                                   htmlFor="bulk-file-upload"
+                                   className="mt-4 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-700 cursor-pointer hover:shadow-sm transition-all"
+                                 >
+                                    Browse Files
+                                 </label>
+                              </>
+                           )}
+                        </div>
+                     </div>
+
+                     <div className="space-y-2">
+                        <label className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Option 2: Paste JSON</label>
+                        <textarea 
+                          className={`w-full h-40 p-4 transition-all font-mono text-sm rounded-2xl border outline-none resize-none ${
+                            selectedFile ? 'bg-gray-50 text-gray-400 border-gray-100 opacity-50 cursor-not-allowed' : 'bg-slate-900 text-emerald-400 border-slate-800 focus:ring-4 focus:ring-blue-500/10'
+                          }`}
+                          placeholder={`[\n  {\n    "name": "Translation Tool",\n    "category_name": "Language",\n    "system_prompt": "You are a translator..." \n  }\n]`}
+                          value={bulkJson}
+                          disabled={!!selectedFile}
+                          onChange={e => setBulkJson(e.target.value)}
+                        />
+                     </div>
+                  </div>
+               </div>
+            </div>
+
+            <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+              <button 
+                onClick={() => {
+                  if (selectedFile) return;
+                  try {
+                    const parsed = JSON.parse(bulkJson);
+                    setBulkJson(JSON.stringify(parsed, null, 2));
+                    alert('JSON is valid!');
+                  } catch (e: any) {
+                    alert(`Invalid JSON: ${e.message}`);
+                  }
+                }}
+                disabled={!!selectedFile}
+                className="px-6 py-2 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-all disabled:opacity-30"
+              >
+                Validate JSON
+              </button>
+              <button 
+                disabled={bulkImportMutation.isPending || (!bulkJson && !selectedFile)}
+                onClick={() => {
+                   if (selectedFile) {
+                      const formData = new FormData();
+                      formData.append('file', selectedFile);
+                      bulkImportMutation.mutate(formData);
+                   } else {
+                      try {
+                        const data = JSON.parse(bulkJson);
+                        if (!Array.isArray(data)) throw new Error("Data must be an array");
+                        bulkImportMutation.mutate(data);
+                      } catch (e: any) {
+                        alert(`Validation error: ${e.message}`);
+                      }
+                   }
+                }}
+                className="px-8 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-600/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
+              >
+                {bulkImportMutation.isPending ? 'Propagating...' : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    Execute Bulky Import
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

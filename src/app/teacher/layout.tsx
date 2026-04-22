@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useTheme } from "@/components/providers/ThemeContext"
 import { AuthGuard } from "@/components/auth/AuthGuard"
+import { OnboardingGuard } from "@/components/auth/OnboardingGuard"
 import { useAuth } from "@/components/providers/AuthContext"
 import { useNotifications } from "@/hooks/useNotifications"
 
@@ -20,7 +21,9 @@ export default function TeacherAppLayout({
 }) {
     return (
         <AuthGuard>
-            <TeacherLayoutContent>{children}</TeacherLayoutContent>
+            <OnboardingGuard>
+                <TeacherLayoutContent>{children}</TeacherLayoutContent>
+            </OnboardingGuard>
         </AuthGuard>
     )
 }
@@ -136,7 +139,7 @@ function TeacherLayoutContent({
                                                 <Bell className="w-8 h-8 mx-auto mb-2 opacity-20" />
                                                 <p className="text-sm text-slate-500 dark:text-slate-400">All caught up!</p>
                                             </div>
-                                        ) : notifications.map((n) => (
+                                        ) : notifications.map((n: any) => (
                                             <div 
                                                 key={n.id} 
                                                 className={cn(
